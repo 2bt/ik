@@ -43,6 +43,7 @@ edit = {
 if arg[2] then
 	edit.file_name = arg[2]
 	model:load(edit.file_name)
+	edit.selected_bone = model.root
 end
 
 
