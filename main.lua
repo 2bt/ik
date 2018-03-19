@@ -90,9 +90,11 @@ function edit:toggle_mode()
 	self.mode = self.mode == "bone" and "mesh" or "bone"
 
 	if self.mode == "mesh" then
-		self.is_playing = false
-		self.frame = math.floor(self.frame + 0.5)
-		model:set_frame(self.frame)
+		if self.is_playing then
+			self.is_playing = false
+			self.frame = math.floor(self.frame + 0.5)
+			model:set_frame(self.frame)
+		end
 
 		-- transform poly into world space
 		local b = self.selected_bone
