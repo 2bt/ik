@@ -2,6 +2,27 @@ require("helper")
 require("fancymodel")
 require("gui")
 
+
+colors = {
+	{ 0x00, 0x00, 0x00 },
+	{ 0xFF, 0xFF, 0xFF },
+	{ 0x68, 0x37, 0x2B },
+	{ 0x70, 0xA4, 0xB2 },
+	{ 0x6F, 0x3D, 0x86 },
+	{ 0x58, 0x8D, 0x43 },
+	{ 0x35, 0x28, 0x79 },
+	{ 0xB8, 0xC7, 0x6F },
+	{ 0x6F, 0x4F, 0x25 },
+	{ 0x43, 0x39, 0x00 },
+	{ 0x9A, 0x67, 0x59 },
+	{ 0x44, 0x44, 0x44 },
+	{ 0x6C, 0x6C, 0x6C },
+	{ 0x9A, 0xD2, 0x84 },
+	{ 0x6C, 0x5E, 0xB5 },
+	{ 0x95, 0x95, 0x95 },
+}
+
+
 G = love.graphics
 love.keyboard.setKeyRepeat(true)
 
@@ -472,7 +493,10 @@ function do_gui()
 		end
 
 		gui:item_min_size(105, 0)
-		gui:drag_value("shade", edit.selected_bone, "shade", 0.05, 0.3, 1, "%.2f")
+		gui:drag_value("shade", edit.selected_bone, "shade", 0.05, 0.3, 1.3, "%.2f")
+
+		gui:item_min_size(105, 0)
+		gui:drag_value("color", edit.selected_bone, "color", 1, 1, 16, "%d")
 
 
 --		-- copy bone pos
@@ -495,6 +519,7 @@ function do_gui()
 --				end
 --			end
 --		end
+
 --		-- duplicate bone
 --		if gui.was_key_pressed["q"] then
 --			qqq = edit.selected_bone
@@ -754,10 +779,13 @@ function love.draw()
 				G.push()
 				G.translate(b.global_x, b.global_y)
 				G.rotate(b.global_ang)
-				G.setColor(120 * b.shade, 80 * b.shade, 80 * b.shade)
+				local c = colors[b.color]
+				local s = b.shade
+				G.setColor(c[1] * s, c[2] * s, c[3] * s)
 				if edit.show_fill then
 					draw_concav_poly(b.poly)
-					G.setColor(100 * b.shade, 60 * b.shade, 60 * b.shade)
+					local s = b.shade * 0.9
+					G.setColor(c[1] * s, c[2] * s, c[3] * s)
 				end
 				G.polygon("line", b.poly)
 				G.pop()

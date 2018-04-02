@@ -7,6 +7,7 @@ function Bone:init(x, y, ang)
 	self.poly      = {}
 	self.keyframes = {}
 	self.shade     = 1
+	self.color     = 11
 end
 function Bone:add_kid(k)
 	table.insert(self.kids, k)
@@ -82,6 +83,7 @@ function Model:load(name)
 		b.poly      = d.poly or {}
 		b.keyframes = d.keyframes or {}
 		b.shade     = d.shade or 1
+		b.color     = d.color or 11
 		table.insert(self.bones, b)
 	end
 	for i, d in ipairs(data.bones) do
