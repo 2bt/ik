@@ -13,7 +13,9 @@ end
 
 local keyframe_buffer = {}
 
-
+function Model:add_bone(b)
+	table.insert(self.bones, b)
+end
 function Model:delete_bone(b)
 	keyframe_buffer = {}
 	for i, p in ipairs(self.bones) do
