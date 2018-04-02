@@ -705,6 +705,7 @@ end
 
 
 local function draw_concav_poly(p)
+	if #p < 6 then return end
 	local tris = love.math.triangulate(p)
 	for _, t in ipairs(tris) do G.polygon("fill", t) end
 end
