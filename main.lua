@@ -58,6 +58,8 @@ edit = {
 	poly              = {},
 	selected_vertices = {},
 	selected_bone     = model.root,
+
+	bone_buffer	      = nil,
 }
 
 
@@ -155,16 +157,7 @@ end
 function love.keypressed(k)
 	gui:keypressed(k)
 
-	if k == "x" and edit.mode == "bone" then
-		-- delete bone
-		if edit.selected_bone.parent then
-			local k = edit.selected_bone
-			edit.selected_bone = k.parent
-			edit.selected_bone:delete_kid(k)
-			model:delete_bone(k)
-		end
-
-	elseif k == "x" and edit.mode == "mesh" then
+	if k == "x" and edit.mode == "mesh" then
 		-- delete selected vertice
 		for j = #edit.selected_vertices, 1, -1 do
 			local i = edit.selected_vertices[j]
@@ -450,8 +443,10 @@ function do_gui()
 	do
 		gui:select_win(1)
 		local t = { edit.mode }
+		gui:item_min_size(60, 0)
 		gui:radio_button("bone", "bone", t)
 		gui:same_line()
+		gui:item_min_size(60, 0)
 		gui:radio_button("mesh", "mesh", t)
 		if edit.mode ~= t[1]
 		or gui.was_key_pressed["tab"] then
@@ -478,67 +473,94 @@ function do_gui()
 --		gui:checkbox("image", bg, "enabled")
 
 
-		gui:item_min_size(105, 0)
+		gui:item_min_size(125, 0)
 		gui:drag_value("IK chain", edit, "ik_length", 1, 2, 5, "%d")
 
 		gui:separator()
 
-		gui:item_min_size(105, 0)
-		if gui:button("move to front") then
-			model:change_bone_layer(edit.selected_bone, 1)
-		end
-		gui:item_min_size(105, 0)
-		if gui:button("move to back") then
-			model:change_bone_layer(edit.selected_bone, -1)
-		end
+		if edit.mode == "bone" then
 
-		gui:item_min_size(105, 0)
-		gui:drag_value("shade", edit.selected_bone, "shade", 0.05, 0.3, 1.3, "%.2f")
+			gui:item_min_size(125, 0)
+			gui:drag_value("shade", edit.selected_bone, "shade", 0.05, 0.3, 1.3, "%.2f")
 
-		gui:item_min_size(105, 0)
-		gui:drag_value("color", edit.selected_bone, "color", 1, 1, 16, "%d")
+			gui:item_min_size(125, 0)
+			gui:drag_value("color", edit.selected_bone, "color", 1, 1, 16, "%d")
+
+			gui:item_min_size(60, 0)
+			if gui:button("to front") then
+				model:change_bone_layer(edit.selected_bone, 1)
+			end
+			gui:same_line()
+			gui:item_min_size(60, 0)
+			if gui:button("to back") then
+				model:change_bone_layer(edit.selected_bone, -1)
+			end
 
 
---		-- copy bone pos
---		if true then
---			gui:item_min_size(105, 0)
---			if gui:button("copy bone pos")
---			or gui.was_key_pressed["q"] then
---				qqq = {
---					edit.selected_bone.x,
---					edit.selected_bone.y,
---				}
---			end
---			gui:item_min_size(105, 0)
---			if gui:button("paste bone pos")
---			or gui.was_key_pressed["w"] then
---				if qqq then
---					edit.selected_bone.x = qqq[1]
---					edit.selected_bone.y = qqq[2]
---					edit.selected_bone:update()
+--			-- copy bone pos
+--			if true then
+--				gui:item_min_size(125, 0)
+--				if gui:button("copy bone pos")
+--				or gui.was_key_pressed["q"] then
+--					qqq = {
+--						edit.selected_bone.x,
+--						edit.selected_bone.y,
+--					}
+--				end
+--				gui:item_min_size(125, 0)
+--				if gui:button("paste bone pos")
+--				or gui.was_key_pressed["w"] then
+--					if qqq then
+--						edit.selected_bone.x = qqq[1]
+--						edit.selected_bone.y = qqq[2]
+--						edit.selected_bone:update()
+--					end
 --				end
 --			end
---		end
 
---		-- duplicate bone
---		if gui.was_key_pressed["q"] then
---			qqq = edit.selected_bone
---		end
---		if gui.was_key_pressed["w"] and qqq then
---			local function duplicate(b, p)
---				local k = Bone(b.x, b.y, b.rot)
---				k.poly = { unpack(b.poly) }
---				k.keyframes = { unpack(b.keyframes) }
---				model:add_bone(k)
---				p:add_kid(k)
---				for i, l in ipairs(b.kids) do
---					duplicate(l, k)
---				end
---				return k
---			end
---			edit.selected_bone = duplicate(qqq, edit.selected_bone)
---			edit.selected_bone:update()
---		end
+
+			-- duplicate bone
+			local function duplicate(b, p)
+				local k = Bone(b.x, b.y, b.rot)
+				k.poly      = { unpack(b.poly) }
+				k.keyframes = {}
+				k.shade     = b.shade
+				k.color     = b.color
+				if p then p:add_kid(k) end
+				for i, l in ipairs(b.kids) do
+					duplicate(l, k)
+				end
+				return k
+			end
+			gui:item_min_size(60, 0)
+			if gui:button("copy") then
+				edit.bone_buffer = duplicate(edit.selected_bone, nil)
+			end
+			gui:same_line()
+			gui:item_min_size(60, 0)
+			if gui:button("paste") and edit.bone_buffer then
+				edit.selected_bone = duplicate(edit.bone_buffer, edit.selected_bone)
+				local function add_bones(p)
+					model:add_bone(p)
+					for _, k in ipairs(p.kids) do add_bones(k) end
+				end
+				add_bones(edit.selected_bone)
+				edit.selected_bone:update()
+			end
+
+			gui:item_min_size(125, 0)
+			if gui:button("delete")
+			or gui.was_key_pressed["x"] then
+				-- delete bone
+				if edit.selected_bone.parent then
+					local k = edit.selected_bone
+					edit.selected_bone = k.parent
+					edit.selected_bone:delete_kid(k)
+					model:delete_bone(k)
+				end
+			end
+
+		end
 
 
 		local b = edit.selected_bone
