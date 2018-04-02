@@ -731,8 +731,13 @@ end
 
 local function draw_concav_poly(p)
 	if #p < 6 then return end
-	local tris = love.math.triangulate(p)
-	for _, t in ipairs(tris) do G.polygon("fill", t) end
+	local status, err = pcall(function()
+		local tris = love.math.triangulate(p)
+		for _, t in ipairs(tris) do G.polygon("fill", t) end
+	end)
+	if not status then
+		print(err)
+	end
 end
 function love.draw()
 	G.translate(G.getWidth() / 2, G.getHeight() / 2)
