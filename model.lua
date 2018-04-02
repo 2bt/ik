@@ -71,10 +71,10 @@ function Model:set_frame(frame)
 end
 function Model:load(name)
 	self:reset()
-	local str = love.filesystem.read(name)
-	if not str then
-		return false
-	end
+	local f = io.open(name)
+	if not f then return false end
+	local str = f:read("*a")
+	f:close()
 	local data = loadstring("return " .. str)()
 	self.anims = data.anims
 	self.bones = {}
