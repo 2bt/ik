@@ -54,7 +54,7 @@ function Model:save(name)
 			ang       = b.ang,
 			parent    = order[b.parent],
 			shade     = b.shade,
-			colot     = b.color,
+			color     = b.color,
 		}
 		if #b.poly > 0 then d.poly = b.poly end
 		if #b.keyframes > 0 then d.keyframes = b.keyframes end
