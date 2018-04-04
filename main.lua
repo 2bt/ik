@@ -2,6 +2,15 @@ require("helper")
 require("fancymodel")
 require("gui")
 
+G = love.graphics
+do
+	local setColor = G.setColor
+	local setColor = G.setColor
+	G.setColor = function(r, g, b, a)
+		setColor(r / 255, g / 255, b / 255, (a or 255) / 255)
+	end
+end
+love.keyboard.setKeyRepeat(true)
 
 colors = {
 	{ 0x00, 0x00, 0x00 },
@@ -21,10 +30,6 @@ colors = {
 	{ 0x6C, 0x5E, 0xB5 },
 	{ 0x95, 0x95, 0x95 },
 }
-
-
-G = love.graphics
-love.keyboard.setKeyRepeat(true)
 
 model = Model()
 --model:load("save")
