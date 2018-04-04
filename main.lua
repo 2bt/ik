@@ -2,36 +2,30 @@ require("helper")
 require("fancymodel")
 require("gui")
 
-G = love.graphics
-do
-	local setColor = G.setColor
-	local setColor = G.setColor
-	G.setColor = function(r, g, b, a)
-		setColor(r / 255, g / 255, b / 255, (a or 255) / 255)
-	end
-end
+local G = love.graphics
 love.keyboard.setKeyRepeat(true)
 
-colors = {
-	{ 0x00, 0x00, 0x00 },
-	{ 0xFF, 0xFF, 0xFF },
-	{ 0x68, 0x37, 0x2B },
-	{ 0x70, 0xA4, 0xB2 },
-	{ 0x6F, 0x3D, 0x86 },
-	{ 0x58, 0x8D, 0x43 },
-	{ 0x35, 0x28, 0x79 },
-	{ 0xB8, 0xC7, 0x6F },
-	{ 0x6F, 0x4F, 0x25 },
-	{ 0x43, 0x39, 0x00 },
-	{ 0x9A, 0x67, 0x59 },
-	{ 0x44, 0x44, 0x44 },
-	{ 0x6C, 0x6C, 0x6C },
-	{ 0x9A, 0xD2, 0x84 },
-	{ 0x6C, 0x5E, 0xB5 },
-	{ 0x95, 0x95, 0x95 },
+-- C64 color palette
+local colors = {
+	{ 0, 0, 0 },
+	{ 1, 1, 1 },
+	{ 0.41, 0.22, 0.17 },
+	{ 0.44, 0.64, 0.7 },
+	{ 0.44, 0.24, 0.53 },
+	{ 0.35, 0.55, 0.26 },
+	{ 0.21, 0.16, 0.47 },
+	{ 0.72, 0.78, 0.44 },
+	{ 0.44, 0.31, 0.15 },
+	{ 0.26, 0.22, 0 },
+	{ 0.6, 0.4, 0.35 },
+	{ 0.27, 0.27, 0.27 },
+	{ 0.42, 0.42, 0.42 },
+	{ 0.6, 0.82, 0.52 },
+	{ 0.42, 0.37, 0.71 },
+	{ 0.58, 0.58, 0.58 },
 }
 
-model = Model()
+local model = Model()
 --model:load("save")
 --model.anims = {
 --	{
@@ -42,12 +36,12 @@ model = Model()
 --	}
 --}
 
-cam = {
+local cam = {
 	x    = 0,
 	y    = -150,
 	zoom = 1,
 }
-edit = {
+local edit = {
 	file_name         = "save.model",
 	is_playing        = false,
 	speed             = 0.5,
@@ -653,16 +647,16 @@ function do_gui()
 			end
 		end
 
-		G.setColor(100, 100, 100, 200)
+		G.setColor(0.39, 0.39, 0.39, 0.78)
 		G.rectangle("fill", 0, 0, box.w, box.h)
 
 		-- current frame
-		G.setColor(0, 255, 0)
+		G.setColor(0, 1, 0)
 		local x = 5 + edit.frame * 10
 		G.line(x, 0, x, 45)
 
 		-- animations
-		G.setColor(0, 255, 0, 150)
+		G.setColor(0, 1, 0, 0.59)
 		for _, a in ipairs(model.anims) do
 			local x1 = 5 + a.start * 10
 			local x2 = 5 + a.stop * 10
@@ -672,7 +666,7 @@ function do_gui()
 		-- lines
 		local i = 0
 		for x = 5, box.w, 10 do
-			G.setColor(255, 255, 255)
+			G.setColor(1, 1, 1)
 			if i % 10 == 0 then
 				G.line(x, 35, x, 45)
 				G.printf(i, x - 50, 18, 100, "center")
@@ -682,7 +676,7 @@ function do_gui()
 
 			-- keyframe
 			if is_keyframe[i] then
-				G.setColor(255, 200, 100)
+				G.setColor(1, 0.78, 0.39)
 				G.circle("fill", x, 10, 5, 4)
 			end
 			i = i + 1
@@ -774,7 +768,7 @@ function love.draw()
 
 	-- axis and grid
 	do
-		G.setColor(255, 255, 255, 50)
+		G.setColor(1, 1, 1, 0.2)
 		G.line(-1000, 0, 1000, 0)
 		G.line(0, -1000, 0, 1000)
 		if edit.show_grid then
@@ -832,7 +826,7 @@ function love.draw()
 				local dx = b.global_x - b.parent.global_x
 				local dy = b.global_y - b.parent.global_y
 				local l = length(dx, dy) * 0.1 / cam.zoom
-				G.setColor(100, 150, 200, 150)
+				G.setColor(0.39, 0.59, 0.78, 0.59)
 				G.polygon("fill",
 					b.parent.global_x + dy / l,
 					b.parent.global_y - dx / l,
@@ -848,10 +842,10 @@ function love.draw()
 	if edit.show_joints then
 		for _, b in ipairs(model.bones) do
 			if b == edit.selected_bone then
-				G.setColor(255, 255, 0, 150)
+				G.setColor(1, 1, 0, 0.59)
 				G.circle("fill", b.global_x, b.global_y, 10 * cam.zoom)
 			end
-			G.setColor(255, 255, 255, 150)
+			G.setColor(1, 1, 1, 0.59)
 			G.circle("fill", b.global_x, b.global_y, 5 * cam.zoom)
 		end
 	end
@@ -861,12 +855,12 @@ function love.draw()
 
 		-- mesh
 		if #edit.poly >= 6 then
-			G.setColor(200, 100, 100, 150)
+			G.setColor(0.78, 0.39, 0.39, 0.59)
 			draw_concav_poly(edit.poly)
-			G.setColor(255, 255, 255, 150)
+			G.setColor(1, 1, 1, 0.59)
 			G.polygon("line", edit.poly)
 		end
-		G.setColor(255, 255, 255, 150)
+		G.setColor(1, 1, 1, 0.59)
 		G.setPointSize(5)
 		G.points(edit.poly)
 
@@ -876,20 +870,20 @@ function love.draw()
 			s[#s + 1] = edit.poly[i]
 			s[#s + 1] = edit.poly[i + 1]
 		end
-		G.setColor(255, 255, 0)
+		G.setColor(1, 1, 0)
 		G.setPointSize(7)
 		G.points(s)
 
 		-- selection box
 		if edit.sx then
-			G.setColor(200, 200, 200)
+			G.setColor(0.78, 0.78, 0.78)
 			G.rectangle("line", edit.sx, edit.sy, edit.mx - edit.sx, edit.my - edit.sy)
 		end
 	end
 
 
 --	if bg.enabled then
---		G.setColor(255, 255, 255, 70)
+--		G.setColor(1, 1, 1, 0.27)
 --		G.draw(bg.img, bg.x, bg.y, 0, bg.scale)
 --	end
 

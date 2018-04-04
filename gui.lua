@@ -1,4 +1,26 @@
+local G = love.graphics
+
 local PADDING = 5
+
+local colors = {
+	text      = { 1, 1, 1 },
+	window    = { 0.2, 0.2, 0.2, 0.78 },
+	separator = { 0.39, 0.39, 0.39, 0.39 },
+
+	active    = { 0.78, 0.39, 0.39, 0.78 },
+	hover     = { 0.59, 0.39, 0.39, 0.78 },
+	normal    = { 0.39, 0.39, 0.39, 0.78 },
+	check     = { 1, 1, 1, 0.78 },
+
+	drag_active = { 0.59, 0.39, 0.39, 0.39 },
+	drag_hover  = { 0.59, 0.39, 0.39, 0.39 },
+	drag_normal = { 0.39, 0.39, 0.39, 0.39 },
+	drag_handle = { 0.78, 0.39, 0.39, 0.78 },
+}
+local function set_color(c)
+	G.setColor(unpack(colors[c]))
+end
+
 
 gui = {
 	mx               = 0,
@@ -116,7 +138,7 @@ function gui:begin_frame()
 	for _, win in ipairs(self.windows) do
 		if win.columns then
 			local c = win.columns[1]
-			G.setColor(50, 50, 50, 200)
+			set_color("window")
 			G.rectangle("fill", c.min_x, c.min_y, c.max_x - c.min_x + PADDING, c.max_y - c.min_y + PADDING,
 					PADDING)
 		end
@@ -188,7 +210,7 @@ function gui:end_column()
 end
 function gui:separator()
 	local win = self.current_window
-	G.setColor(100, 100, 100, 100)
+	set_color("separator")
 	if win.same_line then
 		local box = self:item_box(4, win.max_cy - win.min_cy - PADDING)
 		G.rectangle("fill", box.x, box.y - PADDING, box.w, box.h + PADDING * 2)
@@ -203,7 +225,7 @@ function gui:text(fmt, ...)
 	local str = fmt:format(...)
 	local w = G.getFont():getWidth(str)
 	local box = self:item_box(w, 14)
-	G.setColor(255, 255, 255)
+	set_color("text")
 	G.print(str, box.x, box.y + box.h / 2 - 7)
 end
 function gui:button(label)
@@ -220,15 +242,15 @@ function gui:button(label)
 	end
 
 	if label == self.active_item then
-		G.setColor(200, 100, 100, 200)
+		set_color("active")
 	elseif hover then
-		G.setColor(150, 100, 100, 200)
+		set_color("hover")
 	else
-		G.setColor(100, 100, 100, 200)
+		set_color("normal")
 	end
 	G.rectangle("fill", box.x, box.y, box.w, box.h, PADDING)
 
-	G.setColor(255, 255, 255)
+	set_color("text")
 	G.printf(label, box.x, box.y + box.h / 2 - 7, box.w, "center")
 
 	return hover and self.was_mouse_cliked
@@ -247,20 +269,20 @@ function gui:checkbox(label, t, n)
 	end
 
 	if label == self.active_item then
-		G.setColor(200, 100, 100, 200)
+		set_color("active")
 	elseif hover then
-		G.setColor(150, 100, 100, 200)
+		set_color("hover")
 	else
-		G.setColor(100, 100, 100, 200)
+		set_color("normal")
 	end
 	G.rectangle("fill", box.x, box.y, box.h, box.h, PADDING)
 
 	if t[n] then
-		G.setColor(255, 255, 255, 200)
+		set_color("check")
 		G.rectangle("fill", box.x + 5, box.y + 5, box.h - 10, box.h - 10)
 	end
 
-	G.setColor(255, 255, 255)
+	set_color("text")
 	G.print(label, box.x + box.h + PADDING, box.y + box.h / 2 - 7)
 
 	return hover and self.was_mouse_cliked
@@ -280,15 +302,15 @@ function gui:radio_button(label, v, t)
 	end
 
 	if t[1] == v or label == self.active_item then
-		G.setColor(200, 100, 100, 200)
+		set_color("active")
 	elseif hover then
-		G.setColor(150, 100, 100, 200)
+		set_color("hover")
 	else
-		G.setColor(100, 100, 100, 200)
+		set_color("normal")
 	end
 	G.rectangle("fill", box.x, box.y, box.w, box.h, PADDING)
 
-	G.setColor(255, 255, 255)
+	set_color("text")
 	G.printf(label, box.x, box.y + box.h / 2 - 7, box.w, "center")
 
 	return hover and self.was_mouse_cliked
@@ -314,20 +336,20 @@ function gui:drag_value(label, t, n, step, min, max, fmt)
 		local x = (self.mx - box.x - handle_w * 0.5) / (box.w - handle_w)
 		x = min + math.floor(x * (max - min) / step + 0.5) * step
 		t[n] = clamp(x, min, max)
-		G.setColor(150, 100, 100, 100)
+		set_color("drag_active")
 	elseif hover then
 		t[n] = clamp(v + step * self.wheel, min, max)
-		G.setColor(150, 100, 100, 100)
+		set_color("drag_hover")
 	else
-		G.setColor(100, 100, 100, 100)
+		set_color("drag_normal")
 	end
 	G.rectangle("fill", box.x, box.y, box.w, box.h)
 
 
-	G.setColor(200, 100, 100, 200)
+	set_color("drag_handle")
 	G.rectangle("fill", box.x + handle_x, box.y, handle_w, box.h)
 
-	G.setColor(255, 255, 255)
+	set_color("text")
 	G.printf(text, box.x, box.y + box.h / 2 - 7, box.w, "center")
 
 	return v ~= t[n]
