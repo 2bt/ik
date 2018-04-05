@@ -589,7 +589,6 @@ function do_gui()
 		if gui:button("new")
 		or (gui.was_key_pressed["n"] and ctrl) then
 			model:reset()
-			edit.mode = edit.modes.bone
 			edit.modes.mesh.selected_vertices = {}
 			edit.modes.mesh.poly_index = 0
 			edit.modes.bone.selected_bone = model.root
@@ -602,7 +601,6 @@ function do_gui()
 			else
 				print("error loading model")
 			end
-			edit.mode = edit.modes.bone
 			edit.modes.mesh.selected_vertices = {}
 			edit.modes.mesh.poly_index = 0
 			edit.modes.bone.selected_bone = model.root

@@ -43,10 +43,10 @@ function Model:save(name)
 	end
 	for i, b in ipairs(self.bones) do
 		local d = {
-			x         = b.x,
-			y         = b.y,
-			ang       = b.ang,
-			parent    = order[b.parent],
+			x      = b.x,
+			y      = b.y,
+			a      = b.a,
+			parent = order[b.parent],
 		}
 		if #b.keyframes > 0 then d.keyframes = b.keyframes end
 		data.bones[i] = d
@@ -77,7 +77,7 @@ function Model:insert_keyframe(frame)
 		end
 		kf[2] = b.x
 		kf[3] = b.y
-		kf[4] = b.ang
+		kf[4] = b.a
 	end
 end
 function Model:delete_keyframe(frame)
