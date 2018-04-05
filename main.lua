@@ -27,6 +27,11 @@ local colors = {
 local model = {
 	polys = {
 		{
+			data = { -5, -5, 15, -5, 15, 15, -5, 15 },
+			color = 4,
+			shade = 1,
+		},
+		{
 			data = { -10, -10, 10, -10, 10, 10, -10, 10 },
 			color = 11,
 			shade = 1,
@@ -40,6 +45,12 @@ local cam = {
 	zoom = 0.5,
 }
 local edit = {
+	show_fill = true,
+
+	-- mouse
+	mx = 0,
+	my = 0,
+
 	modes = {
 		mesh = {
 			poly_index        = 1,
@@ -50,153 +61,220 @@ local edit = {
 }
 edit.mode = edit.modes.mesh
 
+
+function edit.modes.mesh:select_poly()
+	local index = self.poly_index
+	self.poly_index = 0
+	for i = 1, #model.polys do
+		if index > 0 then
+			i = (i + index - 1) % #model.polys + 1
+		end
+		local poly = model.polys[i]
+		local click = false
+		local x1 = poly.data[#poly.data - 1]
+		local y1 = poly.data[#poly.data]
+		for j = 1, #poly.data, 2 do
+			local x2 = poly.data[j]
+			local y2 = poly.data[j + 1]
+			local dx = x2 - x1
+			local dy = y2 - y1
+			local ex = edit.mx - x1
+			local ey = edit.my - y1
+			if (y1 <= edit.my) == (y2 > edit.my)
+			and ex < dx * ey / dy then
+				click = not click
+			end
+			x1 = x2
+			y1 = y2
+		end
+		if click then
+			self.poly_index = i
+			break
+		end
+	end
+end
+
+
 function edit.modes.mesh:keypressed(k)
 	local poly = model.polys[self.poly_index]
+	if poly then
 
-	if k == "x" then
-		-- delete selected vertice
-		for j = #self.selected_vertices, 1, -1 do
-			local i = self.selected_vertices[j]
-			table.remove(poly.data, i)
-			table.remove(poly.data, i)
-		end
-		self.selected_vertices = {}
-
-	elseif k == "a" then
-		-- toggle select
-		local v = {}
-		if #self.selected_vertices == 0 then
-			for i = 1, #poly.data, 2 do
-				v[#v + 1] = i
+		if k == "x" then
+			-- delete selected vertice
+			for j = #self.selected_vertices, 1, -1 do
+				local i = self.selected_vertices[j]
+				table.remove(poly.data, i)
+				table.remove(poly.data, i)
 			end
+			self.selected_vertices = {}
+
+			-- remove polygon if less than 3 three vertices are left
+			if #poly.data < 6 then
+				table.remove(model.polys, self.poly_index)
+				self.poly_index = 0
+			end
+
+		elseif k == "a" then
+			-- toggle select
+			local v = {}
+			if #self.selected_vertices == 0 then
+				for i = 1, #poly.data, 2 do
+					v[#v + 1] = i
+				end
+			end
+			self.selected_vertices = v
 		end
-		self.selected_vertices = v
 	end
 end
 function edit.modes.mesh:mousepressed(x, y, button)
 	local poly = model.polys[self.poly_index]
-	if button == 1 and love.keyboard.isDown("c") then
-		-- add new vertex
-		local index = 1
-		local min_l = nil
-		for i = 1, #poly.data, 2 do
-			local ax = poly.data[i]
-			local ay = poly.data[i + 1]
-			local bx = poly.data[(i + 2) % #poly.data]
-			local by = poly.data[(i + 2) % #poly.data + 1]
-			local d0 = distance(ax, ay, bx, by)
-			local d1 = distance(ax, ay, edit.mx, edit.my)
-			local d2 = distance(bx, by, edit.mx, edit.my)
-			l = (d1 + d2) / d0
-			if not min_l or l < min_l then
-				min_l = l
-				index = i + 2
+	if poly then
+		if button == 1 and love.keyboard.isDown("c") then
+			-- add new vertex
+			local index = 1
+			local min_l = nil
+			for i = 1, #poly.data, 2 do
+				local ax = poly.data[i]
+				local ay = poly.data[i + 1]
+				local bx = poly.data[(i + 2) % #poly.data]
+				local by = poly.data[(i + 2) % #poly.data + 1]
+				local d0 = distance(ax, ay, bx, by)
+				local d1 = distance(ax, ay, edit.mx, edit.my)
+				local d2 = distance(bx, by, edit.mx, edit.my)
+				l = (d1 + d2) / d0
+				if not min_l or l < min_l then
+					min_l = l
+					index = i + 2
+				end
 			end
+
+			table.insert(poly.data, index, edit.mx)
+			table.insert(poly.data, index + 1, edit.my)
+			self.selected_vertices = { index }
+
+		elseif button == 2 then
+			-- vertex selection rect
+			self.sx = edit.mx
+			self.sy = edit.my
 		end
 
-		table.insert(poly.data, index, edit.mx)
-		table.insert(poly.data, index + 1, edit.my)
-		self.selected_vertices = { index }
-
-	elseif button == 2 then
-		-- vertex selection rect
-		self.sx = edit.mx
-		self.sy = edit.my
+	else
+		if button == 1 and love.keyboard.isDown("c") then
+			-- create new poly
+			local s = cam.zoom * 20
+			local p = {
+				data = {
+					edit.mx - s, edit.my - s, edit.mx + s, edit.my - s,
+					edit.mx + s, edit.my + s, edit.mx - s, edit.my + s
+				},
+				color = 11,
+				shade = 1,
+			}
+			table.insert(model.polys, p)
+			self.poly_index = #model.polys
+		end
 	end
 end
 function edit.modes.mesh:mousereleased(x, y, button)
 	local poly = model.polys[self.poly_index]
-
-	if button == 2 then
-		-- select vertices
-
-		if not love.keyboard.isDown("lshift", "rshift") then
-			self.selected_vertices = {}
-		end
-		if edit.mx == self.sx and edit.my == self.sy then
-			local dist = 10
-			for i = 1, #poly.data, 2 do
-				local d = math.max(
-					math.abs(poly.data[i    ] - edit.mx),
-					math.abs(poly.data[i + 1] - edit.my)) / cam.zoom
-				if d < dist then
-					dist = d
-					self.selected_vertices[1] = i
+	if poly then
+		if button == 2 then
+			-- select vertices
+			local shift = love.keyboard.isDown("lshift", "rshift")
+			if not shift then
+				self.selected_vertices = {}
+			end
+			if edit.mx == self.sx and edit.my == self.sy then
+				local dist = 10
+				for i = 1, #poly.data, 2 do
+					local d = math.max(
+						math.abs(poly.data[i    ] - edit.mx),
+						math.abs(poly.data[i + 1] - edit.my)) / cam.zoom
+					if d < dist then
+						dist = d
+						table.insert(self.selected_vertices, i)
+					end
+				end
+				if not shift and #self.selected_vertices == 0 then
+					self:select_poly()
+				end
+			else
+				local min_x = math.min(edit.mx, self.sx)
+				local min_y = math.min(edit.my, self.sy)
+				local max_x = math.max(edit.mx, self.sx)
+				local max_y = math.max(edit.my, self.sy)
+				for i = 1, #poly.data, 2 do
+					local x = poly.data[i]
+					local y = poly.data[i + 1]
+					local s = x >= min_x and x <= max_x and y >= min_y and y <= max_y
+					if s then
+						table.insert(self.selected_vertices, i)
+					end
 				end
 			end
-		else
-			local min_x = math.min(edit.mx, self.sx)
-			local min_y = math.min(edit.my, self.sy)
-			local max_x = math.max(edit.mx, self.sx)
-			local max_y = math.max(edit.my, self.sy)
-
-			for i = 1, #poly.data, 2 do
-				local x = poly.data[i]
-				local y = poly.data[i + 1]
-				local s = x >= min_x and x <= max_x and y >= min_y and y <= max_y
-				if s then
-					table.insert(self.selected_vertices, i)
-				end
-			end
+			self.sx = nil
+			self.sy = nil
 		end
-
-		self.sx = nil
-		self.sy = nil
-		return
+	else
+		if button == 2 then
+			-- select poly
+			self:select_poly()
+		end
 	end
-
 end
 function edit.modes.mesh:mousemoved(x, y, dx, dy)
 	local poly = model.polys[self.poly_index]
 
-	local function get_selection_center()
-		local cx = 0
-		local cy = 0
-		for _, i in ipairs(self.selected_vertices) do
-			cx = cx + poly.data[i    ]
-			cy = cy + poly.data[i + 1]
-		end
-		cx = cx / #self.selected_vertices
-		cy = cy / #self.selected_vertices
-		return cx, cy
-	end
-
-	if love.mouse.isDown(1) or love.keyboard.isDown("g") then
-		-- move
-		for _, i in ipairs(self.selected_vertices) do
-			poly.data[i    ] = poly.data[i    ] + dx
-			poly.data[i + 1] = poly.data[i + 1] + dy
+	if poly then
+		local function get_selection_center()
+			local cx = 0
+			local cy = 0
+			for _, i in ipairs(self.selected_vertices) do
+				cx = cx + poly.data[i    ]
+				cy = cy + poly.data[i + 1]
+			end
+			cx = cx / #self.selected_vertices
+			cy = cy / #self.selected_vertices
+			return cx, cy
 		end
 
-	elseif love.keyboard.isDown("s") then
-		-- scale
-		local cx, cy = get_selection_center()
-		local l1 = distance(edit.mx, edit.my, cx + dx, cy + dy)
-		local l2 = distance(edit.mx, edit.my, cx, cy)
-		local s = l2 / l1
+		if love.mouse.isDown(1) or love.keyboard.isDown("g") then
+			-- move
+			for _, i in ipairs(self.selected_vertices) do
+				poly.data[i    ] = poly.data[i    ] + dx
+				poly.data[i + 1] = poly.data[i + 1] + dy
+			end
 
-		for _, i in ipairs(self.selected_vertices) do
-			poly.data[i    ] = cx + (poly.data[i    ] - cx) * s
-			poly.data[i + 1] = cy + (poly.data[i + 1] - cy) * s
-		end
+		elseif love.keyboard.isDown("s") then
+			-- scale
+			local cx, cy = get_selection_center()
+			local l1 = distance(edit.mx, edit.my, cx + dx, cy + dy)
+			local l2 = distance(edit.mx, edit.my, cx, cy)
+			local s = l2 / l1
 
-	elseif love.keyboard.isDown("r") then
-		-- rotate
-		local cx, cy = get_selection_center()
+			for _, i in ipairs(self.selected_vertices) do
+				poly.data[i    ] = cx + (poly.data[i    ] - cx) * s
+				poly.data[i + 1] = cy + (poly.data[i + 1] - cy) * s
+			end
 
-		local bx = edit.mx - cx
-		local by = edit.my - cy
-		local a = math.atan2(bx - dx, by - dy)- math.atan2(bx, by)
-		if a < -math.pi then a = a + 2 * math.pi end
-		if a > math.pi then a = a - 2 * math.pi end
-		local si = math.sin(a)
-		local co = math.cos(a)
+		elseif love.keyboard.isDown("r") then
+			-- rotate
+			local cx, cy = get_selection_center()
 
-		for _, i in ipairs(self.selected_vertices) do
-			local dx = poly.data[i    ] - cx
-			local dy = poly.data[i + 1] - cy
-			poly.data[i    ] = cx + dx * co - dy * si
-			poly.data[i + 1] = cy + dy * co + dx * si
+			local bx = edit.mx - cx
+			local by = edit.my - cy
+			local a = math.atan2(bx - dx, by - dy)- math.atan2(bx, by)
+			if a < -math.pi then a = a + 2 * math.pi end
+			if a > math.pi then a = a - 2 * math.pi end
+			local si = math.sin(a)
+			local co = math.cos(a)
+
+			for _, i in ipairs(self.selected_vertices) do
+				local dx = poly.data[i    ] - cx
+				local dy = poly.data[i + 1] - cy
+				poly.data[i    ] = cx + dx * co - dy * si
+				poly.data[i + 1] = cy + dy * co + dx * si
+			end
 		end
 	end
 end
@@ -217,8 +295,11 @@ end
 function love.mousemoved(x, y, dx, dy)
 	if gui:mousemoved(x, y, dx, dy) then return end
 
+	-- update mouse pos
 	edit.mx = cam.x + (x - G.getWidth() / 2) * cam.zoom
 	edit.my = cam.y + (y - G.getHeight() / 2) * cam.zoom
+
+	-- scale movement
 	dx = dx * cam.zoom
 	dy = dy * cam.zoom
 	if love.keyboard.isDown("lshift", "rshift") then
@@ -238,6 +319,11 @@ end
 function love.wheelmoved(_, y)
 	if gui:wheelmoved(y) then return end
 	cam.zoom = cam.zoom * (0.9 ^ y)
+
+	-- update mouse pos
+	local x, y = love.mouse.getPosition()
+	edit.mx = cam.x + (x - G.getWidth() / 2) * cam.zoom
+	edit.my = cam.y + (y - G.getHeight() / 2) * cam.zoom
 end
 function love.update()
 end
@@ -251,10 +337,11 @@ function do_gui()
 	do
 		gui:select_win(1)
 
---		gui:checkbox("fill", edit, "show_fill")
+		gui:checkbox("fill", edit, "show_fill")
 --		gui:checkbox("grid", edit, "show_grid")
 --		gui:checkbox("bones", edit, "show_bones")
 --		gui:checkbox("joints", edit, "show_joints")
+
 --		if gui.was_key_pressed["1"] then
 --			bg.enabled = not bg.enabled
 --		end
@@ -263,23 +350,6 @@ function do_gui()
 --		gui:item_min_size(125, 0)
 --		gui:drag_value("IK chain", edit, "ik_length", 1, 1, 5, "%d")
 
-
---			gui:item_min_size(125, 0)
---			gui:drag_value("shade", edit.selected_bone, "shade", 0.05, 0.3, 1.3, "%.2f")
---
---			gui:item_min_size(125, 0)
---			gui:drag_value("color", edit.selected_bone, "color", 1, 1, 16, "%d")
-
---			gui:item_min_size(60, 0)
---			if gui:button("to front") then
---				model:change_bone_layer(edit.selected_bone, 1)
---			end
---			gui:same_line()
---			gui:item_min_size(60, 0)
---			if gui:button("to back") then
---				model:change_bone_layer(edit.selected_bone, -1)
---			end
---
 
 --			-- copy bone pos
 --			if true then
@@ -301,6 +371,41 @@ function do_gui()
 --					end
 --				end
 --			end
+
+
+		gui:separator()
+		if edit.mode == edit.modes.mesh then
+			local m = edit.mode
+			local poly = model.polys[m.poly_index]
+			if poly then
+
+				gui:text("vertices: %d", #poly.data / 2)
+				gui:item_min_size(125, 0)
+				gui:drag_value("shade", poly, "shade", 0.05, 0.3, 1.3, "%.2f")
+
+				gui:item_min_size(125, 0)
+				gui:drag_value("color", poly, "color", 1, 1, 16, "%d")
+
+				gui:item_min_size(60, 0)
+				if gui:button("to front") then
+					if m.poly_index < #model.polys then
+						model.polys[m.poly_index], model.polys[m.poly_index + 1] =
+							model.polys[m.poly_index + 1], model.polys[m.poly_index]
+						m.poly_index = m.poly_index + 1
+					end
+				end
+				gui:same_line()
+				gui:item_min_size(60, 0)
+				if gui:button("to back") then
+					if m.poly_index > 1 then
+						model.polys[m.poly_index], model.polys[m.poly_index - 1] =
+							model.polys[m.poly_index - 1], model.polys[m.poly_index]
+						m.poly_index = m.poly_index - 1
+					end
+				end
+			end
+		end
+
 	end
 
 
@@ -537,12 +642,11 @@ function love.draw()
 		local c = colors[p.color]
 		local s = p.shade
 		G.setColor(c[1] * s, c[2] * s, c[3] * s)
---		if edit.show_fill then
+		if edit.show_fill then
 			draw_concav_poly(p.data)
-			local s = s * 0.9
-			G.setColor(c[1] * s, c[2] * s, c[3] * s)
---		end
-		G.polygon("line", p.data)
+		else
+			G.polygon("line", p.data)
+		end
 	end
 
 
@@ -572,13 +676,37 @@ function love.draw()
 --
 --	end
 
-	-- selection box
-	if edit.mode.sx then
-		G.setColor(0.78, 0.78, 0.78)
-		local sx = edit.mode.sx
-		local sy = edit.mode.sy
-		G.rectangle("line", sx, sy, edit.mx - sx, edit.my - sy)
+	if edit.mode == edit.modes.mesh then
+		local m = edit.mode
+
+		local poly = model.polys[m.poly_index]
+		if poly then
+
+			G.setColor(1, 1, 1, 0.75)
+			G.polygon("line", poly.data)
+
+			G.setColor(1, 1, 1)
+			G.setPointSize(5)
+			G.points(poly.data)
+
+			local s = {}
+			for _, i in ipairs(m.selected_vertices) do
+				s[#s + 1] = poly.data[i]
+				s[#s + 1] = poly.data[i + 1]
+			end
+			G.setColor(1, 1, 0)
+			G.setPointSize(7)
+			G.points(s)
+
+			-- selection box
+			if m.sx then
+				G.setColor(0.7, 0.7, 0.7)
+				G.rectangle("line", m.sx, m.sy, edit.mx - m.sx, edit.my - m.sy)
+			end
+		end
 	end
+
+
 
 --	if bg.enabled then
 --		G.setColor(1, 1, 1, 0.27)

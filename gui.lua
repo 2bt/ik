@@ -3,19 +3,19 @@ local G = love.graphics
 local PADDING = 5
 
 local colors = {
-	text      = { 1, 1, 1 },
-	window    = { 0.2, 0.2, 0.2, 0.78 },
-	separator = { 0.39, 0.39, 0.39, 0.39 },
+	text        = { 1, 1, 1 },
+	window      = { 0.2, 0.2, 0.2, 0.8 },
+	separator   = { 0.4, 0.4, 0.4, 0.4 },
 
-	active    = { 0.78, 0.39, 0.39, 0.78 },
-	hover     = { 0.59, 0.39, 0.39, 0.78 },
-	normal    = { 0.39, 0.39, 0.39, 0.78 },
-	check     = { 1, 1, 1, 0.78 },
+	active      = { 0.8, 0.4, 0.4, 0.8 },
+	hover       = { 0.6, 0.4, 0.4, 0.8 },
+	normal      = { 0.4, 0.4, 0.4, 0.8 },
+	check       = { 1, 1, 1, 0.8 },
 
-	drag_active = { 0.59, 0.39, 0.39, 0.39 },
-	drag_hover  = { 0.59, 0.39, 0.39, 0.39 },
-	drag_normal = { 0.39, 0.39, 0.39, 0.39 },
-	drag_handle = { 0.78, 0.39, 0.39, 0.78 },
+	drag_active = { 0.6, 0.4, 0.4, 0.4 },
+	drag_hover  = { 0.6, 0.4, 0.4, 0.4 },
+	drag_normal = { 0.4, 0.4, 0.4, 0.4 },
+	drag_handle = { 0.8, 0.4, 0.4, 0.8 },
 }
 local function set_color(c)
 	G.setColor(unpack(colors[c]))
