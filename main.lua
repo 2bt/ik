@@ -1,4 +1,5 @@
 require("helper")
+require("fancymodel")
 require("gui")
 
 local G = love.graphics
@@ -24,20 +25,7 @@ local colors = {
 	{ 0.58, 0.58, 0.58 },
 }
 
-local model = {
-	polys = {
-		{
-			data = { -5, -5, 15, -5, 15, 15, -5, 15 },
-			color = 4,
-			shade = 1,
-		},
-		{
-			data = { -10, -10, 10, -10, 10, 10, -10, 10 },
-			color = 11,
-			shade = 1,
-		}
-	}
-}
+local model = Model()
 
 local cam = {
 	x    = 0,
@@ -46,22 +34,175 @@ local cam = {
 }
 local edit = {
 	show_fill = true,
+	show_grid = true,
+	show_joints = true,
+	show_bones = true,
 
 	-- mouse
 	mx = 0,
 	my = 0,
 
-	modes = {
-		mesh = {
-			poly_index        = 1,
-			selected_vertices = {},
-		},
-		bone = {},
-	}
+	modes = {},
 }
-edit.mode = edit.modes.mesh
 
 
+edit.modes.bone = {
+	ik_length = 2,
+	selected_bone = model.root,
+}
+function edit.modes.bone:keypressed(k)
+end
+function edit.modes.bone:mousepressed(x, y, button)
+	if button == 1 and love.keyboard.isDown("c") then
+		-- add new bone
+		local b = self.selected_bone
+		local si = math.sin(b.global_ang)
+		local co = math.cos(b.global_ang)
+		local dx = edit.mx - b.global_x
+		local dy = edit.my - b.global_y
+		local k = Bone(dx * co + dy * si, dy * co - dx * si)
+		model:add_bone(k)
+		b:add_kid(k)
+		k:update()
+		self.selected_bone = k
+	elseif button == 2 then
+		-- select bone
+		local dist = 10
+		for _, b in ipairs(model.bones) do
+			local d = math.max(
+				math.abs(b.global_x - edit.mx),
+				math.abs(b.global_y - edit.my)) / cam.zoom
+			if d < dist then
+				dist = d
+				self.selected_bone = b
+			end
+		end
+	end
+end
+function edit.modes.bone:mousereleased(x, y, button)
+end
+function edit.modes.bone:mousemoved(x, y, dx, dy)
+	local function move(dx, dy)
+		local b = self.selected_bone
+		local si = math.sin(b.global_ang - b.ang)
+		local co = math.cos(b.global_ang - b.ang)
+		b.x = b.x + dx * co + dy * si
+		b.y = b.y + dy * co - dx * si
+		b:update()
+	end
+
+	if love.keyboard.isDown("g") then
+		-- move
+		move(dx, dy)
+
+	elseif love.keyboard.isDown("r") then
+		-- rotate
+		local b = self.selected_bone
+		local bx = edit.mx - b.global_x
+		local by = edit.my - b.global_y
+		local a = math.atan2(bx - dx, by - dy) - math.atan2(bx, by)
+		if a < -math.pi then a = a + 2 * math.pi end
+		if a > math.pi then a = a - 2 * math.pi end
+		b.ang = b.ang + a
+		b:update()
+
+	elseif love.mouse.isDown(1) then
+		-- ik
+		if not self.selected_bone.parent then
+			move(dx, dy)
+			return
+		end
+
+		local tx = self.selected_bone.global_x + dx
+		local ty = self.selected_bone.global_y + dy
+
+		local function calc_error()
+			return distance(self.selected_bone.global_x, self.selected_bone.global_y, tx, ty)
+		end
+
+		for _ = 1, 200 do
+			local delta = 0.0005
+
+			local improve = false
+			local b = self.selected_bone
+			for _ = 1, self.ik_length do
+				b = b.parent
+				if not b then break end
+
+				local e = calc_error()
+				b.ang = b.ang + delta
+				b:update()
+				if calc_error() > e then
+					b.ang = b.ang - delta * 2
+					b:update()
+					if calc_error() > e then
+						b.ang = b.ang + delta
+						b:update()
+					else
+						improve = true
+					end
+				else
+					improve = true
+				end
+
+				-- give parents a smaller weight
+				delta = delta * 1.0
+			end
+			if not improve then break end
+		end
+
+	end
+end
+function edit.modes.bone:do_gui()
+	gui:select_win(1)
+
+	gui:item_min_size(125, 0)
+	gui:drag_value("IK chain", self, "ik_length", 1, 1, 5, "%d")
+
+	-- duplicate bone
+	local function duplicate(b, p)
+		local k = Bone(b.x, b.y, b.rot)
+		k.keyframes = {}
+		if p then p:add_kid(k) end
+		for i, l in ipairs(b.kids) do
+			duplicate(l, k)
+		end
+		return k
+	end
+	gui:item_min_size(60, 0)
+	if gui:button("copy") then
+		self.bone_buffer = duplicate(self.selected_bone, nil)
+	end
+	gui:same_line()
+	gui:item_min_size(60, 0)
+	if gui:button("paste") and self.bone_buffer then
+		self.selected_bone = duplicate(self.bone_buffer, self.selected_bone)
+		local function add_bones(p)
+			model:add_bone(p)
+			for _, k in ipairs(p.kids) do add_bones(k) end
+		end
+		add_bones(self.selected_bone)
+		self.selected_bone:update()
+	end
+
+	gui:item_min_size(125, 0)
+	if gui:button("delete")
+	or gui.was_key_pressed["x"] then
+		-- delete bone
+		if self.selected_bone.parent then
+			local k = self.selected_bone
+			self.selected_bone = k.parent
+			self.selected_bone:delete_kid(k)
+			model:delete_bone(k)
+		end
+	end
+end
+
+
+edit.modes.mesh = {
+	poly_index        = 0,
+	selected_vertices = {},
+}
 function edit.modes.mesh:select_poly()
 	local index = self.poly_index
 	self.poly_index = 0
@@ -89,12 +230,14 @@ function edit.modes.mesh:select_poly()
 		end
 		if click then
 			self.poly_index = i
+			self.selected_vertices = {}
+			for i = 1, #poly.data, 2 do
+				table.insert(self.selected_vertices, i)
+			end
 			break
 		end
 	end
 end
-
-
 function edit.modes.mesh:keypressed(k)
 	local poly = model.polys[self.poly_index]
 	if poly then
@@ -162,16 +305,17 @@ function edit.modes.mesh:mousepressed(x, y, button)
 		if button == 1 and love.keyboard.isDown("c") then
 			-- create new poly
 			local s = cam.zoom * 20
-			local p = {
+			table.insert(model.polys, {
 				data = {
 					edit.mx - s, edit.my - s, edit.mx + s, edit.my - s,
 					edit.mx + s, edit.my + s, edit.mx - s, edit.my + s
 				},
 				color = 11,
 				shade = 1,
-			}
-			table.insert(model.polys, p)
+				bone  = nil,
+			})
 			self.poly_index = #model.polys
+			self.selected_vertices = { 1, 3, 5, 7 }
 		end
 	end
 end
@@ -186,14 +330,18 @@ function edit.modes.mesh:mousereleased(x, y, button)
 			end
 			if edit.mx == self.sx and edit.my == self.sy then
 				local dist = 10
+				local vertex = nil
 				for i = 1, #poly.data, 2 do
 					local d = math.max(
 						math.abs(poly.data[i    ] - edit.mx),
 						math.abs(poly.data[i + 1] - edit.my)) / cam.zoom
 					if d < dist then
 						dist = d
-						table.insert(self.selected_vertices, i)
+						vertex = i
 					end
+				end
+				if vertex then
+					table.insert(self.selected_vertices, vertex)
 				end
 				if not shift and #self.selected_vertices == 0 then
 					self:select_poly()
@@ -278,8 +426,41 @@ function edit.modes.mesh:mousemoved(x, y, dx, dy)
 		end
 	end
 end
+function edit.modes.mesh:do_gui()
+	gui:select_win(1)
+
+	local poly = model.polys[self.poly_index]
+	if poly then
+
+		gui:text("vertices  %d", #poly.data / 2)
+		gui:item_min_size(125, 0)
+		gui:drag_value("shade", poly, "shade", 0.05, 0.3, 1.3, "%.2f")
+
+		gui:item_min_size(125, 0)
+		gui:drag_value("color", poly, "color", 1, 1, 16, "%d")
+
+		gui:item_min_size(60, 0)
+		if gui:button("to front") then
+			if self.poly_index < #model.polys then
+				model.polys[self.poly_index], model.polys[self.poly_index + 1] =
+					model.polys[self.poly_index + 1], model.polys[self.poly_index]
+				self.poly_index = self.poly_index + 1
+			end
+		end
+		gui:same_line()
+		gui:item_min_size(60, 0)
+		if gui:button("to back") then
+			if self.poly_index > 1 then
+				model.polys[self.poly_index], model.polys[self.poly_index - 1] =
+					model.polys[self.poly_index - 1], model.polys[self.poly_index]
+				self.poly_index = self.poly_index - 1
+			end
+		end
+	end
+end
 
 
+edit.mode = edit.modes.bone
 
 
 function love.keypressed(k)
@@ -337,74 +518,19 @@ function do_gui()
 	do
 		gui:select_win(1)
 
+		gui:checkbox("grid", edit, "show_grid")
 		gui:checkbox("fill", edit, "show_fill")
---		gui:checkbox("grid", edit, "show_grid")
---		gui:checkbox("bones", edit, "show_bones")
---		gui:checkbox("joints", edit, "show_joints")
+		gui:checkbox("joints", edit, "show_joints")
+		gui:checkbox("bones", edit, "show_bones")
+		gui:item_min_size(125, 0)
+		gui:separator()
 
---		if gui.was_key_pressed["1"] then
+
+--		if gui.was_key_pressed["b"] then
 --			bg.enabled = not bg.enabled
 --		end
 --		gui:checkbox("image", bg, "enabled")
 
---		gui:item_min_size(125, 0)
---		gui:drag_value("IK chain", edit, "ik_length", 1, 1, 5, "%d")
-
-
---			-- copy bone pos
---			if true then
---				gui:item_min_size(125, 0)
---				if gui:button("copy bone pos")
---				or gui.was_key_pressed["q"] then
---					qqq = {
---						edit.selected_bone.x,
---						edit.selected_bone.y,
---					}
---				end
---				gui:item_min_size(125, 0)
---				if gui:button("paste bone pos")
---				or gui.was_key_pressed["w"] then
---					if qqq then
---						edit.selected_bone.x = qqq[1]
---						edit.selected_bone.y = qqq[2]
---						edit.selected_bone:update()
---					end
---				end
---			end
-
-
-		gui:separator()
-		if edit.mode == edit.modes.mesh then
-			local m = edit.mode
-			local poly = model.polys[m.poly_index]
-			if poly then
-
-				gui:text("vertices: %d", #poly.data / 2)
-				gui:item_min_size(125, 0)
-				gui:drag_value("shade", poly, "shade", 0.05, 0.3, 1.3, "%.2f")
-
-				gui:item_min_size(125, 0)
-				gui:drag_value("color", poly, "color", 1, 1, 16, "%d")
-
-				gui:item_min_size(60, 0)
-				if gui:button("to front") then
-					if m.poly_index < #model.polys then
-						model.polys[m.poly_index], model.polys[m.poly_index + 1] =
-							model.polys[m.poly_index + 1], model.polys[m.poly_index]
-						m.poly_index = m.poly_index + 1
-					end
-				end
-				gui:same_line()
-				gui:item_min_size(60, 0)
-				if gui:button("to back") then
-					if m.poly_index > 1 then
-						model.polys[m.poly_index], model.polys[m.poly_index - 1] =
-							model.polys[m.poly_index - 1], model.polys[m.poly_index]
-						m.poly_index = m.poly_index - 1
-					end
-				end
-			end
-		end
 
 	end
 
@@ -578,6 +704,8 @@ function do_gui()
 --	gui:item_min_size(600, 0)
 --	gui:drag_value("scale", bg, "scale", 1, 1, 10, "%d")
 
+	edit.mode:do_gui()
+
 	gui:end_frame()
 end
 
@@ -613,31 +741,34 @@ function love.draw()
 		G.line(-1000, 0, 1000, 0)
 		G.line(0, -1000, 0, 1000)
 
-		for x = -1000, 1000, 100 do
-			G.line(x, -1000, x, 1000)
-		end
-		for y = -1000, 1000, 100 do
-			G.line(-1000, y, 1000, y)
-		end
-
-		-- fine grid
-		if cam.zoom < 1 then
-			local d = 10
-			local x1 = math.floor((cam.x - cam.zoom * G.getWidth() / 2) / d) * d
-			local y1 = math.floor((cam.y - cam.zoom * G.getHeight() / 2) / d) * d
-			local x2 = cam.x + cam.zoom * G.getWidth() / 2
-			local y2 = cam.y + cam.zoom * G.getHeight() / 2
-
-			for x = x1, x2, d do
-				G.line(x, y1, x, y2)
+		if edit.show_grid then
+			for x = -1000, 1000, 100 do
+				G.line(x, -1000, x, 1000)
 			end
-			for y = y1, y2, d do
-				G.line(x1, y, x2, y)
+			for y = -1000, 1000, 100 do
+				G.line(-1000, y, 1000, y)
+			end
+
+			-- fine grid
+			if cam.zoom < 1 then
+				local d = 10
+				local x1 = math.floor((cam.x - cam.zoom * G.getWidth() / 2) / d) * d
+				local y1 = math.floor((cam.y - cam.zoom * G.getHeight() / 2) / d) * d
+				local x2 = cam.x + cam.zoom * G.getWidth() / 2
+				local y2 = cam.y + cam.zoom * G.getHeight() / 2
+
+				for x = x1, x2, d do
+					G.line(x, y1, x, y2)
+				end
+				for y = y1, y2, d do
+					G.line(x1, y, x2, y)
+				end
 			end
 		end
 	end
 
 
+	-- polys
 	for _, p in ipairs(model.polys) do
 		local c = colors[p.color]
 		local s = p.shade
@@ -649,32 +780,37 @@ function love.draw()
 		end
 	end
 
+	-- bone
+	if edit.show_bones then
+		for _, b in ipairs(model.bones) do
+			if b.parent then
+				local dx = b.global_x - b.parent.global_x
+				local dy = b.global_y - b.parent.global_y
+				local l = length(dx, dy) * 0.1 / cam.zoom
+				G.setColor(0.4, 0.6, 0.8, 0.6)
+				G.polygon("fill",
+					b.parent.global_x + dy / l,
+					b.parent.global_y - dx / l,
+					b.parent.global_x - dy / l,
+					b.parent.global_y + dx / l,
+					b.global_x,
+					b.global_y)
+			end
+		end
+	end
 
+	-- joint
+	if edit.show_joints then
+		for _, b in ipairs(model.bones) do
+			if b == edit.modes.bone.selected_bone then
+				G.setColor(1, 1, 0, 0.6)
+				G.circle("fill", b.global_x, b.global_y, 10 * cam.zoom)
+			end
+			G.setColor(1, 1, 1, 0.6)
+			G.circle("fill", b.global_x, b.global_y, 5 * cam.zoom)
+		end
+	end
 
---	if edit.mode == "mesh" then
---
---		-- mesh
---		if #poly.data >= 6 then
---			G.setColor(0.78, 0.39, 0.39, 0.59)
---			draw_concav_poly(poly.data)
---			G.setColor(1, 1, 1, 0.59)
---			G.polygon("line", poly.data)
---		end
---		G.setColor(1, 1, 1, 0.59)
---		G.setPointSize(5)
---		G.points(poly.data)
---
---		-- selected vertices
---		local s = {}
---		for _, i in ipairs(edit.selected_vertices) do
---			s[#s + 1] = poly.data[i]
---			s[#s + 1] = poly.data[i + 1]
---		end
---		G.setColor(1, 1, 0)
---		G.setPointSize(7)
---		G.points(s)
---
---	end
 
 	if edit.mode == edit.modes.mesh then
 		local m = edit.mode
@@ -682,6 +818,7 @@ function love.draw()
 		local poly = model.polys[m.poly_index]
 		if poly then
 
+			-- selected poly
 			G.setColor(1, 1, 1, 0.75)
 			G.polygon("line", poly.data)
 
@@ -689,6 +826,7 @@ function love.draw()
 			G.setPointSize(5)
 			G.points(poly.data)
 
+			-- selected vertices
 			local s = {}
 			for _, i in ipairs(m.selected_vertices) do
 				s[#s + 1] = poly.data[i]

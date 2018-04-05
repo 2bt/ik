@@ -1,13 +1,10 @@
 Bone = Object:new()
-function Bone:init(x, y, ang)
+function Bone:init(x, y, ang, keyframes)
 	self.x         = x or 0
 	self.y         = y or 0
 	self.ang       = ang or 0
+	self.keyframes = keyframes or {}
 	self.kids      = {}
-	self.poly      = {}
-	self.keyframes = {}
-	self.shade     = 1
-	self.color     = 11
 end
 function Bone:add_kid(k)
 	table.insert(self.kids, k)
@@ -39,6 +36,7 @@ function Model:reset()
 	self.root = Bone()
 	self.root:update()
 	self.bones = { self.root }
+	self.polys = {}
 	self.anims = {}
 end
 function Model:set_frame(frame)
@@ -79,11 +77,7 @@ function Model:load(name)
 	self.anims = data.anims
 	self.bones = {}
 	for _, d in ipairs(data.bones) do
-		local b = Bone(d.x, d.y, d.ang)
-		b.poly      = d.poly or {}
-		b.keyframes = d.keyframes or {}
-		b.shade     = d.shade or 1
-		b.color     = d.color or 11
+		local b = Bone(d.x, d.y, d.ang, d.keyframes)
 		table.insert(self.bones, b)
 	end
 	for i, d in ipairs(data.bones) do

@@ -28,18 +28,6 @@ function Model:delete_bone(b)
 		end
 	end
 end
-function Model:change_bone_layer(b, d)
-	if d ~= 1 and d ~= -1 then return end
-	keyframe_buffer = {}
-	for i, p in ipairs(self.bones) do
-		if p == b then
-			if self.bones[i + d] then
-				self.bones[i + d], self.bones[i] = self.bones[i], self.bones[i + d]
-			end
-			break
-		end
-	end
-end
 function Model:save(name)
 	local order = {}
 	for i, b in ipairs(self.bones) do order[b] = i end
@@ -53,10 +41,7 @@ function Model:save(name)
 			y         = b.y,
 			ang       = b.ang,
 			parent    = order[b.parent],
-			shade     = b.shade,
-			color     = b.color,
 		}
-		if #b.poly > 0 then d.poly = b.poly end
 		if #b.keyframes > 0 then d.keyframes = b.keyframes end
 		table.insert(data.bones, d)
 	end

@@ -317,7 +317,7 @@ function gui:radio_button(label, v, t)
 end
 function gui:drag_value(label, t, n, step, min, max, fmt)
 	local v = t[n]
-	local text = label .. " " .. fmt:format(v)
+	local text = label .. "  " .. fmt:format(v)
 	local w = G.getFont():getWidth(text) + 10
 	local box = self:item_box(w, 20)
 
