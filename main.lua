@@ -25,7 +25,6 @@ local colors = {
 	{ 0.58, 0.58, 0.58 },
 }
 
-local model = Model()
 
 local cam = {
 	x    = 0,
@@ -33,10 +32,11 @@ local cam = {
 	zoom = 0.5,
 }
 local edit = {
-	show_fill = true,
-	show_grid = true,
+	file_name   = arg[2] or "save.model",
+	show_fill   = true,
+	show_grid   = true,
 	show_joints = true,
-	show_bones = true,
+	show_bones  = true,
 
 	-- mouse
 	mx = 0,
@@ -44,6 +44,8 @@ local edit = {
 
 	modes = {},
 }
+
+local model = Model(edit.file_name)
 
 
 edit.modes.bone = {
@@ -171,7 +173,9 @@ function edit.modes.bone:do_gui()
 	end
 	gui:item_min_size(60, 0)
 	if gui:button("copy") then
-		self.bone_buffer = duplicate(self.selected_bone, nil)
+		if self.selected_bone ~= model.root then
+			self.bone_buffer = duplicate(self.selected_bone, nil)
+		end
 	end
 	gui:same_line()
 	gui:item_min_size(60, 0)
@@ -460,7 +464,7 @@ function edit.modes.mesh:do_gui()
 end
 
 
-edit.mode = edit.modes.bone
+edit.mode = edit.modes.mesh
 
 
 function love.keypressed(k)
@@ -518,12 +522,15 @@ function do_gui()
 	do
 		gui:select_win(1)
 
-		gui:checkbox("grid", edit, "show_grid")
 		gui:checkbox("fill", edit, "show_fill")
-		gui:checkbox("joints", edit, "show_joints")
+		gui:checkbox("grid", edit, "show_grid")
 		gui:checkbox("bones", edit, "show_bones")
-		gui:item_min_size(125, 0)
-		gui:separator()
+		gui:checkbox("joints", edit, "show_joints")
+		if gui.was_key_pressed["#"] then
+			local v = not edit.show_grid
+			edit.show_grid   = v
+			edit.show_bones  = v
+		end
 
 
 --		if gui.was_key_pressed["b"] then
@@ -532,6 +539,22 @@ function do_gui()
 --		gui:checkbox("image", bg, "enabled")
 
 
+		gui:item_min_size(125, 0)
+		gui:separator()
+
+		local m = edit.mode == edit.modes.bone and "bone" or "mesh"
+		local t = { m }
+		gui:item_min_size(60, 0)
+		gui:radio_button("mesh", "mesh", t)
+		gui:same_line()
+		gui:item_min_size(60, 0)
+		gui:radio_button("bone", "bone", t)
+		if m ~= t[1]
+		or gui.was_key_pressed["tab"] then
+			m = m == "bone" and "mesh" or "bone"
+			edit.mode = edit.modes[m]
+		end
+--		gui:separator()
 	end
 
 
@@ -541,31 +564,33 @@ function do_gui()
 	do
 		gui:select_win(2)
 
---		if gui:button("new")
---		or (gui.was_key_pressed["n"] and ctrl) then
---			if edit.mode == "mesh" then edit:toggle_mode() end
---			model:reset()
---			edit.selected_bone = model.root
---		end
---		gui:same_line()
---		if gui:button("load")
---		or (gui.was_key_pressed["l"] and ctrl) then
---			if edit.mode == "mesh" then edit:toggle_mode() end
---			if model:load(edit.file_name) then
---				print("model loaded")
---			else
---				print("error loading model")
---			end
---			edit.selected_bone = model.root
---		end
---		gui:same_line()
---		if gui:button("save")
---		or (gui.was_key_pressed["s"] and ctrl) then
---			if edit.mode == "mesh" then edit:toggle_mode() end
---			model:save(edit.file_name)
---			print("model saved")
---		end
---		gui:same_line()
+		if gui:button("new")
+		or (gui.was_key_pressed["n"] and ctrl) then
+			model:reset()
+			edit.mode = edit.modes.bone
+			edit.modes.mesh.selected_vertices = {}
+			edit.modes.mesh.poly_index = 0
+			edit.modes.bone.selected_bone = model.root
+		end
+		gui:same_line()
+		if gui:button("load")
+		or (gui.was_key_pressed["l"] and ctrl) then
+			if model:load(edit.file_name) then
+				print("model loaded")
+			else
+				print("error loading model")
+			end
+			edit.mode = edit.modes.bone
+			edit.modes.mesh.selected_vertices = {}
+			edit.modes.bone.selected_bone = model.root
+		end
+		gui:same_line()
+		if gui:button("save")
+		or (gui.was_key_pressed["s"] and ctrl) then
+			model:save(edit.file_name)
+			print("model saved")
+		end
+		gui:same_line()
 
 		if gui:button("quit")
 		or gui.was_key_pressed["escape"] then
@@ -802,18 +827,18 @@ function love.draw()
 	-- joint
 	if edit.show_joints then
 		for _, b in ipairs(model.bones) do
-			if b == edit.modes.bone.selected_bone then
-				G.setColor(1, 1, 0, 0.6)
-				G.circle("fill", b.global_x, b.global_y, 10 * cam.zoom)
-			end
 			G.setColor(1, 1, 1, 0.6)
 			G.circle("fill", b.global_x, b.global_y, 5 * cam.zoom)
 		end
 	end
 
+	local m = edit.mode
+	if m == edit.modes.bone then
+		local b = m.selected_bone
+		G.setColor(1, 1, 0, 0.6)
+		G.circle("fill", b.global_x, b.global_y, 10 * cam.zoom)
 
-	if edit.mode == edit.modes.mesh then
-		local m = edit.mode
+	elseif m == edit.modes.mesh then
 
 		local poly = model.polys[m.poly_index]
 		if poly then

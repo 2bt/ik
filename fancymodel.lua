@@ -33,6 +33,7 @@ function Model:save(name)
 	for i, b in ipairs(self.bones) do order[b] = i end
 	local data = {
 		bones = {},
+		polys = self.polys,
 		anims = self.anims,
 	}
 	for _, b in ipairs(self.bones) do

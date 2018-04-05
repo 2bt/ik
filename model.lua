@@ -75,6 +75,7 @@ function Model:load(name)
 	f:close()
 	local data = loadstring("return " .. str)()
 	self.anims = data.anims
+	self.polys = data.polys
 	self.bones = {}
 	for _, d in ipairs(data.bones) do
 		local b = Bone(d.x, d.y, d.ang, d.keyframes)
