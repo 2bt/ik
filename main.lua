@@ -28,7 +28,7 @@ local colors = {
 
 local cam = {
 	x    = 0,
-	y    = -150,
+	y    = -75,
 	zoom = 0.5,
 }
 local edit = {
@@ -58,8 +58,8 @@ function edit.modes.bone:mousepressed(x, y, button)
 	if button == 1 and love.keyboard.isDown("c") then
 		-- add new bone
 		local b = self.selected_bone
-		local si = math.sin(b.global_ang)
-		local co = math.cos(b.global_ang)
+		local si = math.sin(b.global_a)
+		local co = math.cos(b.global_a)
 		local dx = edit.mx - b.global_x
 		local dy = edit.my - b.global_y
 		local k = Bone(dx * co + dy * si, dy * co - dx * si)
@@ -86,8 +86,8 @@ end
 function edit.modes.bone:mousemoved(x, y, dx, dy)
 	local function move(dx, dy)
 		local b = self.selected_bone
-		local si = math.sin(b.global_ang - b.ang)
-		local co = math.cos(b.global_ang - b.ang)
+		local si = math.sin(b.global_a - b.a)
+		local co = math.cos(b.global_a - b.a)
 		b.x = b.x + dx * co + dy * si
 		b.y = b.y + dy * co - dx * si
 		b:update()
@@ -105,7 +105,7 @@ function edit.modes.bone:mousemoved(x, y, dx, dy)
 		local a = math.atan2(bx - dx, by - dy) - math.atan2(bx, by)
 		if a < -math.pi then a = a + 2 * math.pi end
 		if a > math.pi then a = a - 2 * math.pi end
-		b.ang = b.ang + a
+		b.a = b.a + a
 		b:update()
 
 	elseif love.mouse.isDown(1) then
@@ -132,13 +132,13 @@ function edit.modes.bone:mousemoved(x, y, dx, dy)
 				if not b then break end
 
 				local e = calc_error()
-				b.ang = b.ang + delta
+				b.a = b.a + delta
 				b:update()
 				if calc_error() > e then
-					b.ang = b.ang - delta * 2
+					b.a = b.a - delta * 2
 					b:update()
 					if calc_error() > e then
-						b.ang = b.ang + delta
+						b.a = b.a + delta
 						b:update()
 					else
 						improve = true
@@ -158,6 +158,7 @@ end
 function edit.modes.bone:do_gui()
 	gui:select_win(1)
 
+	gui:separator()
 	gui:item_min_size(125, 0)
 	gui:drag_value("IK chain", self, "ik_length", 1, 1, 5, "%d")
 
@@ -200,6 +201,14 @@ function edit.modes.bone:do_gui()
 			model:delete_bone(k)
 		end
 	end
+
+
+	local b = self.selected_bone
+	gui:text("x  %.2f", b.x)
+	gui:text("y  %.2f", b.y)
+	gui:text("a  %.2f°", b.a * 180 / math.pi)
+	gui:text("X  %.2f", b.global_x)
+	gui:text("Y  %.2f", b.global_y)
 end
 
 
@@ -435,31 +444,36 @@ function edit.modes.mesh:do_gui()
 
 	local poly = model.polys[self.poly_index]
 	if poly then
+		gui:separator()
 
 		gui:text("vertices  %d", #poly.data / 2)
-		gui:item_min_size(125, 0)
-		gui:drag_value("shade", poly, "shade", 0.05, 0.3, 1.3, "%.2f")
 
-		gui:item_min_size(125, 0)
-		gui:drag_value("color", poly, "color", 1, 1, 16, "%d")
-
-		gui:item_min_size(60, 0)
-		if gui:button("to front") then
-			if self.poly_index < #model.polys then
-				model.polys[self.poly_index], model.polys[self.poly_index + 1] =
-					model.polys[self.poly_index + 1], model.polys[self.poly_index]
-				self.poly_index = self.poly_index + 1
-			end
-		end
+		gui:item_min_size(75, 0)
+		gui:text("index  %d", self.poly_index)
 		gui:same_line()
-		gui:item_min_size(60, 0)
-		if gui:button("to back") then
+		gui:item_min_size(20, 0)
+		if gui:button("<") then
 			if self.poly_index > 1 then
 				model.polys[self.poly_index], model.polys[self.poly_index - 1] =
 					model.polys[self.poly_index - 1], model.polys[self.poly_index]
 				self.poly_index = self.poly_index - 1
 			end
 		end
+		gui:same_line()
+		gui:item_min_size(20, 0)
+		if gui:button(">") then
+			if self.poly_index < #model.polys then
+				model.polys[self.poly_index], model.polys[self.poly_index + 1] =
+					model.polys[self.poly_index + 1], model.polys[self.poly_index]
+				self.poly_index = self.poly_index + 1
+			end
+		end
+
+		gui:item_min_size(125, 0)
+		gui:drag_value("shade", poly, "shade", 0.05, 0.3, 1.3, "%.2f")
+
+		gui:item_min_size(125, 0)
+		gui:drag_value("color", poly, "color", 1, 1, 16, "%d")
 	end
 end
 
@@ -522,10 +536,14 @@ function do_gui()
 	do
 		gui:select_win(1)
 
+		gui:item_min_size(60, 0)
 		gui:checkbox("fill", edit, "show_fill")
+		gui:same_line()
+		gui:checkbox("joint", edit, "show_joints")
+		gui:item_min_size(60, 0)
+		gui:checkbox("bone", edit, "show_bones")
+		gui:same_line()
 		gui:checkbox("grid", edit, "show_grid")
-		gui:checkbox("bones", edit, "show_bones")
-		gui:checkbox("joints", edit, "show_joints")
 		if gui.was_key_pressed["#"] then
 			local v = not edit.show_grid
 			edit.show_grid   = v
@@ -554,7 +572,6 @@ function do_gui()
 			m = m == "bone" and "mesh" or "bone"
 			edit.mode = edit.modes[m]
 		end
---		gui:separator()
 	end
 
 

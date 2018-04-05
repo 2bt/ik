@@ -144,26 +144,37 @@ function gui:begin_frame()
 		end
 	end
 
+	do
+		-- custom window size and position policies
 
-	local c = self.windows[2].columns[1]
-	if c.min_x == 0 then
-		c.min_x = G.getWidth()
-	else
-		c.min_x = G.getWidth() - (c.max_x - c.min_x) - PADDING
+		-- left window
+		-- shrink height
+		self.windows[1].columns[1].max_y = 0
+
+		-- right window
+		local c = self.windows[2].columns[1]
+		if c.min_x == 0 then
+			c.min_x = G.getWidth()
+		else
+			c.min_x = G.getWidth() - (c.max_x - c.min_x) - PADDING
+		end
+		c.max_x = G.getWidth() - PADDING
+		c.min_y = 0
+		c.max_y = 0
+
+
+		-- bottom window
+		local c = self.windows[3].columns[1]
+		if c.min_y == 0 then
+			c.min_y = G.getHeight()
+		else
+			c.min_y = G.getHeight() - (c.max_y - c.min_y) - PADDING
+		end
+		c.max_y = c.min_y
+		c.max_x = G.getWidth() - PADDING
 	end
-	c.max_x = G.getWidth() - PADDING
-	c.min_y = 0
-	c.max_y = 0
 
 
-	local c = self.windows[3].columns[1]
-	if c.min_y == 0 then
-		c.min_y = G.getHeight()
-	else
-		c.min_y = G.getHeight() - (c.max_y - c.min_y) - PADDING
-	end
-	c.max_y = c.min_y
-	c.max_x = G.getWidth() - PADDING
 
 	for _, win in ipairs(self.windows) do
 		local c = win.columns[1]
@@ -230,7 +241,6 @@ function gui:text(fmt, ...)
 end
 function gui:button(label)
 	local w = G.getFont():getWidth(label) + 10
-	w = math.max(w, 50)
 	local box = self:item_box(w, 20)
 
 	local hover = self:mouse_in_box(box)
@@ -289,7 +299,6 @@ function gui:checkbox(label, t, n)
 end
 function gui:radio_button(label, v, t)
 	local w = G.getFont():getWidth(label) + 10
-	w = math.max(w, 50)
 	local box = self:item_box(w, 20)
 
 	local hover = self:mouse_in_box(box)

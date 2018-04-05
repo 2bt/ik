@@ -1,8 +1,8 @@
 Bone = Object:new()
-function Bone:init(x, y, ang, keyframes)
+function Bone:init(x, y, a, keyframes)
 	self.x         = x or 0
 	self.y         = y or 0
-	self.ang       = ang or 0
+	self.a         = a or 0
 	self.keyframes = keyframes or {}
 	self.kids      = {}
 end
@@ -12,15 +12,15 @@ function Bone:add_kid(k)
 end
 function Bone:update()
 	local p = self.parent or {
-		global_x   = 0,
-		global_y   = 0,
-		global_ang = 0,
+		global_x = 0,
+		global_y = 0,
+		global_a = 0,
 	}
-	local si = math.sin(p.global_ang)
-	local co = math.cos(p.global_ang)
+	local si = math.sin(p.global_a)
+	local co = math.cos(p.global_a)
 	self.global_x = p.global_x + self.x * co - self.y * si
 	self.global_y = p.global_y + self.y * co + self.x * si
-	self.global_ang = p.global_ang + self.ang
+	self.global_a = p.global_a + self.a
 	for _, k in ipairs(self.kids) do k:update() end
 end
 
@@ -55,14 +55,14 @@ function Model:set_frame(frame)
 			local l = (frame - k1[1]) / (k2[1] - k1[1])
 --			l = 3 * l^2 - 2 * l^3
 			local function lerp(i) return k1[i] * (1 - l) + k2[i] * l end
-			b.x   = lerp(2)
-			b.y   = lerp(3)
-			b.ang = lerp(4)
+			b.x = lerp(2)
+			b.y = lerp(3)
+			b.a = lerp(4)
 		elseif k1 or k2 then
 			local k = k1 or k2
-			b.x   = k[2]
-			b.y   = k[3]
-			b.ang = k[4]
+			b.x = k[2]
+			b.y = k[3]
+			b.a = k[4]
 		end
 	end
 	self.root:update()
@@ -78,7 +78,7 @@ function Model:load(name)
 	self.polys = data.polys
 	self.bones = {}
 	for _, d in ipairs(data.bones) do
-		local b = Bone(d.x, d.y, d.ang, d.keyframes)
+		local b = Bone(d.x, d.y, d.a, d.keyframes)
 		table.insert(self.bones, b)
 	end
 	for i, d in ipairs(data.bones) do
