@@ -49,8 +49,9 @@ local model = Model(edit.file_name)
 
 
 edit.modes.bone = {
-	ik_length = 2,
+	ik_length     = 2,
 	selected_bone = model.root,
+	bone_buffer   = nil, -- for copying
 }
 function edit.modes.bone:keypressed(k)
 end
@@ -182,11 +183,7 @@ function edit.modes.bone:do_gui()
 	gui:item_min_size(60, 0)
 	if gui:button("paste") and self.bone_buffer then
 		self.selected_bone = duplicate(self.bone_buffer, self.selected_bone)
-		local function add_bones(p)
-			model:add_bone(p)
-			for _, k in ipairs(p.kids) do add_bones(k) end
-		end
-		add_bones(self.selected_bone)
+		model:add_bone(self.selected_bone)
 		self.selected_bone:update()
 	end
 
@@ -197,7 +194,6 @@ function edit.modes.bone:do_gui()
 		if self.selected_bone.parent then
 			local k = self.selected_bone
 			self.selected_bone = k.parent
-			self.selected_bone:delete_kid(k)
 			model:delete_bone(k)
 		end
 	end
@@ -448,7 +444,7 @@ function edit.modes.mesh:do_gui()
 
 		gui:text("vertices  %d", #poly.data / 2)
 
-		gui:item_min_size(75, 0)
+		gui:item_min_size(75, 20)
 		gui:text("index  %d", self.poly_index)
 		gui:same_line()
 		gui:item_min_size(20, 0)
@@ -470,10 +466,19 @@ function edit.modes.mesh:do_gui()
 		end
 
 		gui:item_min_size(125, 0)
+		gui:drag_value("color", poly, "color", 1, 1, 16, "%d")
+		gui:item_min_size(125, 0)
 		gui:drag_value("shade", poly, "shade", 0.05, 0.3, 1.3, "%.2f")
 
-		gui:item_min_size(125, 0)
-		gui:drag_value("color", poly, "color", 1, 1, 16, "%d")
+		gui:item_min_size(60, 0)
+		if gui:button("assign") then
+			poly.bone = edit.modes.bone.selected_bone
+		end
+		gui:same_line()
+		gui:item_min_size(60, 0)
+		if gui:button("orphan") then
+			poly.bone = nil
+		end
 	end
 end
 
@@ -599,6 +604,7 @@ function do_gui()
 			end
 			edit.mode = edit.modes.bone
 			edit.modes.mesh.selected_vertices = {}
+			edit.modes.mesh.poly_index = 0
 			edit.modes.bone.selected_bone = model.root
 		end
 		gui:same_line()
@@ -849,13 +855,14 @@ function love.draw()
 		end
 	end
 
-	local m = edit.mode
-	if m == edit.modes.bone then
-		local b = m.selected_bone
-		G.setColor(1, 1, 0, 0.6)
-		G.circle("fill", b.global_x, b.global_y, 10 * cam.zoom)
+	-- selected
+	local b = edit.modes.bone.selected_bone
+	G.setColor(1, 1, 0, 0.6)
+	G.circle("fill", b.global_x, b.global_y, 10 * cam.zoom)
 
-	elseif m == edit.modes.mesh then
+
+	local m = edit.mode
+	if m == edit.modes.mesh then
 
 		local poly = model.polys[m.poly_index]
 		if poly then
@@ -882,6 +889,13 @@ function love.draw()
 			if m.sx then
 				G.setColor(0.7, 0.7, 0.7)
 				G.rectangle("line", m.sx, m.sy, edit.mx - m.sx, edit.my - m.sy)
+			end
+
+			-- parent bone
+			if poly.bone then
+				G.setColor(1, 1, 0)
+				G.setLineWidth(cam.zoom * 2)
+				G.circle("line", poly.bone.global_x, poly.bone.global_y, 13 * cam.zoom)
 			end
 		end
 	end

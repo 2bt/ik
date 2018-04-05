@@ -1,23 +1,20 @@
 require("model")
 
 
-function Bone:delete_kid(kid)
-	for i, k in ipairs(self.kids) do
-		if k == kid then
-			table.remove(self.kids, i)
-			break
-		end
-	end
-end
-
-
 local keyframe_buffer = {}
 
 function Model:add_bone(b)
 	table.insert(self.bones, b)
+	for _, k in ipairs(b.kids) do self:add_bone(k) end
 end
 function Model:delete_bone(b)
 	keyframe_buffer = {}
+	for i, k in ipairs(b.parent.kids) do
+		if k == b then
+			table.remove(b.parent.kids, i)
+			break
+		end
+	end
 	for i, p in ipairs(self.bones) do
 		if p == b then
 			table.remove(self.bones, i)
@@ -33,10 +30,18 @@ function Model:save(name)
 	for i, b in ipairs(self.bones) do order[b] = i end
 	local data = {
 		bones = {},
-		polys = self.polys,
+		polys = {},
 		anims = self.anims,
 	}
-	for _, b in ipairs(self.bones) do
+	for i, p in ipairs(self.polys) do
+		data.polys[i] = {
+			data  = p.data,
+			color = p.color,
+			shade = p.shade,
+			bone  = order[p.bone],
+		}
+	end
+	for i, b in ipairs(self.bones) do
 		local d = {
 			x         = b.x,
 			y         = b.y,
@@ -44,7 +49,7 @@ function Model:save(name)
 			parent    = order[b.parent],
 		}
 		if #b.keyframes > 0 then d.keyframes = b.keyframes end
-		table.insert(data.bones, d)
+		data.bones[i] = d
 	end
 	local file = io.open(name, "w")
 	file:write(table.tostring(data) .. "\n")
