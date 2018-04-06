@@ -74,11 +74,20 @@ function Model:load(name)
 	f:close()
 	local data = loadstring("return " .. str)()
 	self.anims = data.anims
-	self.polys = data.polys
+	self.polys = data.polys or {} -- compatibility with old model
 	self.bones = {}
-	for _, d in ipairs(data.bones) do
+	for i, d in ipairs(data.bones) do
 		local b = Bone(d.x, d.y, d.a, d.keyframes)
 		table.insert(self.bones, b)
+		-- compatibility with old model
+		if d.poly then
+			self.polys[#self.polys + 1] = {
+				data = d.poly,
+				color = d.color,
+				shade = d.shade,
+				bone = i,
+			}
+		end
 	end
 	for i, d in ipairs(data.bones) do
 		local b = self.bones[i]

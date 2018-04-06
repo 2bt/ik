@@ -28,15 +28,22 @@ local colors = {
 
 local cam = {
 	x    = 0,
-	y    = -75,
-	zoom = 0.5,
+	y    = -100,
+	zoom = 1,
 }
 local edit = {
-	file_name   = arg[2] or "save.model",
+	file_name = arg[2] or "save.model",
+
+	-- view options
 	show_fill   = true,
 	show_grid   = true,
 	show_joints = true,
 	show_bones  = true,
+
+	-- animation
+	is_playing = false,
+	speed      = 0.5,
+	frame      = 0,
 
 	-- mouse
 	mx = 0,
@@ -44,7 +51,58 @@ local edit = {
 
 	modes = {},
 }
+
+
 local model = Model(edit.file_name)
+
+
+function edit:set_frame(f)
+	edit:set_mode("bone")
+
+	self.frame = math.max(0, f)
+	model:set_frame(self.frame)
+
+	self.current_anim = nil
+	for _, a in ipairs(model.anims) do
+		if self.frame >= a.start
+		and self.frame < a.stop then
+			self.current_anim = a
+			break
+		end
+	end
+
+end
+function edit:update_frame()
+	if not self.is_playing then return end
+	local f = self.frame + self.speed
+	if self.current_anim then
+		f = self.frame + self.current_anim.speed
+		if f >= self.current_anim.stop then
+			if self.current_anim.loop then
+				f = self.current_anim.start + f - self.current_anim.stop
+			else
+				f = self.current_anim.start
+				self.is_playing = false
+			end
+		end
+	end
+	self:set_frame(f)
+end
+function edit:set_playing(p)
+	self.is_playing = p
+	if not p then
+		edit:set_mode("bone")
+	else
+		self:set_frame(math.floor(self.frame + 0.5))
+	end
+end
+function edit:set_mode(m)
+	if self.mode then
+		self.mode:exit()
+	end
+	self.mode = self.modes[m]
+	self.mode:enter()
+end
 
 
 edit.modes.bone = {
@@ -242,6 +300,9 @@ edit.modes.mesh = {
 	selected_vertices = {},
 }
 function edit.modes.mesh:enter()
+	if edit.is_playing then
+		edit:set_playing(false)
+	end
 	local poly = model.polys[self.poly_index]
 	if poly and poly.bone then
 		poly.data = transform_to_global_space(poly.data, poly.bone)
@@ -527,7 +588,6 @@ function edit.modes.mesh:do_gui()
 		gui:item_min_size(60, 0)
 		if gui:button("orphan") then
 			poly.bone = nil
---			assign_poly_bone(poly, nil)
 		end
 
 		gui:item_min_size(60, 0)
@@ -553,6 +613,7 @@ function edit.modes.mesh:do_gui()
 					p.data[#p.data + 1] = poly.data[j + 1] + cam.zoom * 10
 					self.selected_vertices[i] = i * 2 - 1
 				end
+				self:exit()
 				self.poly_index = #model.polys
 			end
 		end
@@ -561,14 +622,7 @@ function edit.modes.mesh:do_gui()
 end
 
 
-function edit:set_mode(m)
-	if self.mode then
-		self.mode:exit()
-	end
-	self.mode = self.modes[m]
-	self.mode:enter()
-end
-edit:set_mode("mesh")
+edit:set_mode("bone")
 
 
 function love.keypressed(k)
@@ -615,10 +669,11 @@ function love.wheelmoved(_, y)
 	edit.my = cam.y + (y - G.getHeight() / 2) * cam.zoom
 end
 function love.update()
+	edit:update_frame()
 end
 
 
-function do_gui()
+local function do_gui()
 	G.origin()
 	G.setLineWidth(1)
 	gui:begin_frame()
@@ -653,10 +708,10 @@ function do_gui()
 		local m = edit.mode == edit.modes.bone and "bone" or "mesh"
 		local t = { m }
 		gui:item_min_size(60, 0)
-		gui:radio_button("mesh", "mesh", t)
+		gui:radio_button("bone", "bone", t)
 		gui:same_line()
 		gui:item_min_size(60, 0)
-		gui:radio_button("bone", "bone", t)
+		gui:radio_button("mesh", "mesh", t)
 		if m ~= t[1]
 		or gui.was_key_pressed["tab"] then
 			m = m == "bone" and "mesh" or "bone"
@@ -707,124 +762,124 @@ function do_gui()
 	end
 
 	do
---		gui:select_win(3)
---
---		-- timeline
---		local w = gui.current_window.columns[1].max_x - gui.current_window.max_cx - 5
---		local box = gui:item_box(w, 45)
---
---		-- change frame
---		if gui.was_key_pressed["backspace"] then
---			if edit.current_anim then
---				edit:set_frame(edit.current_anim.start)
---			else
---				edit:set_frame(0)
---			end
---		end
---		local dx = (gui.was_key_pressed["right"] and 1 or 0)
---				- (gui.was_key_pressed["left"] and 1 or 0)
---		if dx ~= 0 then
---			if shift then dx = dx * 10 end
---			local f = edit.frame + dx
---			if ctrl and edit.current_anim then
---				local a = edit.current_anim
---				f = a.start + (f - a.start) % (a.stop - a.start)
---			end
---			edit:set_frame(f)
---		end
---		if not gui.active_item and gui:mouse_in_box(box) and gui.is_mouse_down then
---			edit:set_frame(math.floor((gui.mx - box.x - 5) / 10 + 0.5))
---		end
---
---		G.setScissor(box.x, box.y, box.w, box.h)
---		G.push()
---		G.translate(box.x, box.y)
---
---		local is_keyframe = {}
---		for _, b in ipairs(model.bones) do
---			for _, k in ipairs(b.keyframes) do
---				is_keyframe[k[1]] = true
---			end
---		end
---
---		G.setColor(0.39, 0.39, 0.39, 0.78)
---		G.rectangle("fill", 0, 0, box.w, box.h)
---
---		-- current frame
---		G.setColor(0, 1, 0)
---		local x = 5 + edit.frame * 10
---		G.line(x, 0, x, 45)
---
---		-- animations
---		G.setColor(0, 1, 0, 0.59)
---		for _, a in ipairs(model.anims) do
---			local x1 = 5 + a.start * 10
---			local x2 = 5 + a.stop * 10
---			G.rectangle("fill", x1, 5, x2 - x1, 10)
---		end
---
---		-- lines
---		local i = 0
---		for x = 5, box.w, 10 do
---			G.setColor(1, 1, 1)
---			if i % 10 == 0 then
---				G.line(x, 35, x, 45)
---				G.printf(i, x - 50, 18, 100, "center")
---			else
---				G.line(x, 40, x, 45)
---			end
---
---			-- keyframe
---			if is_keyframe[i] then
---				G.setColor(1, 0.78, 0.39)
---				G.circle("fill", x, 10, 5, 4)
---			end
---			i = i + 1
---		end
---
---		G.pop()
---		G.setScissor()
---
---		-- play
---		local t = { edit.is_playing }
---		gui:radio_button("stop", false, t)
---		gui:same_line()
---		gui:radio_button("play", true, t)
---		gui:same_line()
---		if edit.is_playing ~= t[1]
---		or gui.was_key_pressed["space"] then
---			edit:set_playing(not edit.is_playing)
---		end
---		gui:separator()
---
---		-- animation
---		local t = edit.current_anim or edit
---		gui:item_min_size(400, 0)
---		gui:drag_value("animation speed", t, "speed", 0.01, 0.01, 1, "%.2f")
---		gui:same_line()
---		gui:separator()
---
---		-- keyframe buttons
---		gui:text("keyframe:")
---		gui:same_line()
---		if gui:button("insert") or gui.was_key_pressed["i"] then
---			model:insert_keyframe(edit.frame)
---		end
---		gui:same_line()
---		if gui:button("copy") then
---			model:copy_keyframe(edit.frame)
---		end
---		gui:same_line()
---		if gui:button("paste") then
---			model:paste_keyframe(edit.frame)
---		end
---		gui:same_line()
---		local alt = love.keyboard.isDown("lalt", "ralt")
---		if gui:button("delete")
---		or (gui.was_key_pressed["i"] and alt) then
---			model:delete_keyframe(edit.frame)
---		end
---
+		gui:select_win(3)
+
+		-- timeline
+		local w = gui.current_window.columns[1].max_x - gui.current_window.max_cx - 5
+		local box = gui:item_box(w, 45)
+
+		-- change frame
+		if gui.was_key_pressed["backspace"] then
+			if edit.current_anim then
+				edit:set_frame(edit.current_anim.start)
+			else
+				edit:set_frame(0)
+			end
+		end
+		local dx = (gui.was_key_pressed["right"] and 1 or 0)
+				- (gui.was_key_pressed["left"] and 1 or 0)
+		if dx ~= 0 then
+			if shift then dx = dx * 10 end
+			local f = edit.frame + dx
+			if ctrl and edit.current_anim then
+				local a = edit.current_anim
+				f = a.start + (f - a.start) % (a.stop - a.start)
+			end
+			edit:set_frame(f)
+		end
+		if not gui.active_item and gui:mouse_in_box(box) and gui.is_mouse_down then
+			edit:set_frame(math.floor((gui.mx - box.x - 5) / 10 + 0.5))
+		end
+
+		G.setScissor(box.x, box.y, box.w, box.h)
+		G.push()
+		G.translate(box.x, box.y)
+
+		local is_keyframe = {}
+		for _, b in ipairs(model.bones) do
+			for _, k in ipairs(b.keyframes) do
+				is_keyframe[k[1]] = true
+			end
+		end
+
+		G.setColor(0.39, 0.39, 0.39, 0.78)
+		G.rectangle("fill", 0, 0, box.w, box.h)
+
+		-- current frame
+		G.setColor(0, 1, 0)
+		local x = 5 + edit.frame * 10
+		G.line(x, 0, x, 45)
+
+		-- animations
+		G.setColor(0, 1, 0, 0.59)
+		for _, a in ipairs(model.anims) do
+			local x1 = 5 + a.start * 10
+			local x2 = 5 + a.stop * 10
+			G.rectangle("fill", x1, 5, x2 - x1, 10)
+		end
+
+		-- lines
+		local i = 0
+		for x = 5, box.w, 10 do
+			G.setColor(1, 1, 1)
+			if i % 10 == 0 then
+				G.line(x, 35, x, 45)
+				G.printf(i, x - 50, 18, 100, "center")
+			else
+				G.line(x, 40, x, 45)
+			end
+
+			-- keyframe
+			if is_keyframe[i] then
+				G.setColor(1, 0.78, 0.39)
+				G.circle("fill", x, 10, 5, 4)
+			end
+			i = i + 1
+		end
+
+		G.pop()
+		G.setScissor()
+
+		-- play
+		local t = { edit.is_playing }
+		gui:radio_button("stop", false, t)
+		gui:same_line()
+		gui:radio_button("play", true, t)
+		gui:same_line()
+		if edit.is_playing ~= t[1]
+		or gui.was_key_pressed["space"] then
+			edit:set_playing(not edit.is_playing)
+		end
+		gui:separator()
+
+		-- animation
+		local t = edit.current_anim or edit
+		gui:item_min_size(400, 0)
+		gui:drag_value("animation speed", t, "speed", 0.01, 0.01, 1, "%.2f")
+		gui:same_line()
+		gui:separator()
+
+		-- keyframe buttons
+		gui:text("keyframe:")
+		gui:same_line()
+		if gui:button("insert") or gui.was_key_pressed["i"] then
+			model:insert_keyframe(edit.frame)
+		end
+		gui:same_line()
+		if gui:button("copy") then
+			model:copy_keyframe(edit.frame)
+		end
+		gui:same_line()
+		if gui:button("paste") then
+			model:paste_keyframe(edit.frame)
+		end
+		gui:same_line()
+		local alt = love.keyboard.isDown("lalt", "ralt")
+		if gui:button("delete")
+		or (gui.was_key_pressed["i"] and alt) then
+			model:delete_keyframe(edit.frame)
+		end
+
 	end
 
 

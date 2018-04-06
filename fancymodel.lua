@@ -7,8 +7,26 @@ function Model:add_bone(b)
 	table.insert(self.bones, b)
 	for _, k in ipairs(b.kids) do self:add_bone(k) end
 end
+local function transform_to_global_space(points, bone)
+	local p = {}
+	local si = math.sin(bone.global_a)
+	local co = math.cos(bone.global_a)
+	for i = 1, #points, 2 do
+		local x = points[i    ]
+		local y = points[i + 1]
+		p[i    ] = bone.global_x + x * co - y * si
+		p[i + 1] = bone.global_y + y * co + x * si
+	end
+	return p
+end
 function Model:delete_bone(b)
 	keyframe_buffer = {}
+	for _, p in ipairs(self.polys) do
+		if p.bone == b then
+			p.bone = nil
+			p.data = transform_to_global_space(p.data, b)
+		end
+	end
 	for i, k in ipairs(b.parent.kids) do
 		if k == b then
 			table.remove(b.parent.kids, i)
