@@ -47,6 +47,9 @@ for _, win in ipairs(gui.windows) do
 	}
 end
 
+function gui:get_id(label)
+	return self.id_prefix .. label
+end
 function gui:has_focus()
 	for _, win in ipairs(self.windows) do
 		local c = win.columns[#win.columns]
@@ -74,6 +77,7 @@ function gui:mousemoved(x, y, dx, dy)
 end
 function gui:select_win(nr)
 	self.current_window = self.windows[nr]
+	self.id_prefix = tostring(nr)
 end
 function gui:item_min_size(w, h)
 	self.iw = w
@@ -184,7 +188,7 @@ function gui:begin_frame()
 		win.max_cy = c.min_y
 	end
 
-	self.current_window = self.windows[1]
+	self:select_win(1)
 end
 function gui:end_frame()
 	self.was_key_pressed = {}
@@ -240,18 +244,19 @@ function gui:text(fmt, ...)
 	G.print(str, box.x, box.y + box.h / 2 - 7)
 end
 function gui:button(label)
+	local id = self:get_id(label)
 	local w = G.getFont():getWidth(label) + 10
 	local box = self:item_box(w, 20)
 
 	local hover = self:mouse_in_box(box)
 	if hover then
-		self.hover_item = label
+		self.hover_item = id
 		if self.was_mouse_cliked then
-			self.active_item = label
+			self.active_item = id
 		end
 	end
 
-	if label == self.active_item then
+	if id == self.active_item then
 		set_color("active")
 	elseif hover then
 		set_color("hover")
@@ -266,19 +271,20 @@ function gui:button(label)
 	return hover and self.was_mouse_cliked
 end
 function gui:checkbox(label, t, n)
+	local id = self:get_id(label)
 	local w = G.getFont():getWidth(label) + 20 + PADDING
 	local box = self:item_box(w, 20)
 
 	local hover = self:mouse_in_box(box)
 	if hover then
-		self.hover_item = label
+		self.hover_item = id
 		if self.was_mouse_cliked then
-			self.active_item = label
+			self.active_item = id
 			t[n] = not t[n]
 		end
 	end
 
-	if label == self.active_item then
+	if id == self.active_item then
 		set_color("active")
 	elseif hover then
 		set_color("hover")
@@ -298,19 +304,20 @@ function gui:checkbox(label, t, n)
 	return hover and self.was_mouse_cliked
 end
 function gui:radio_button(label, v, t)
+	local id = self:get_id(label)
 	local w = G.getFont():getWidth(label) + 10
 	local box = self:item_box(w, 20)
 
 	local hover = self:mouse_in_box(box)
 	if hover then
-		self.hover_item = label
+		self.hover_item = id
 		if self.was_mouse_cliked then
-			self.active_item = label
+			self.active_item = id
 			t[1] = v
 		end
 	end
 
-	if t[1] == v or label == self.active_item then
+	if t[1] == v or id == self.active_item then
 		set_color("active")
 	elseif hover then
 		set_color("hover")
@@ -325,6 +332,7 @@ function gui:radio_button(label, v, t)
 	return hover and self.was_mouse_cliked
 end
 function gui:drag_value(label, t, n, step, min, max, fmt)
+	local id = self:get_id(label)
 	local v = t[n]
 	local text = label .. "  " .. fmt:format(v)
 	local w = G.getFont():getWidth(text) + 10
@@ -332,16 +340,16 @@ function gui:drag_value(label, t, n, step, min, max, fmt)
 
 	local hover = self:mouse_in_box(box)
 	if hover then
-		self.hover_item = label
+		self.hover_item = id
 		if self.was_mouse_cliked then
-			self.active_item = label
+			self.active_item = id
 		end
 	end
 
 	local handle_w = math.max(4, box.w / (1 + (max - min) / step))
 	local handle_x = (v - min) / (max - min) * (box.w - handle_w)
 
-	if label == self.active_item then
+	if id == self.active_item then
 		local x = (self.mx - box.x - handle_w * 0.5) / (box.w - handle_w)
 		x = min + math.floor(x * (max - min) / step + 0.5) * step
 		t[n] = clamp(x, min, max)
