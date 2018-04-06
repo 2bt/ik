@@ -44,7 +44,6 @@ local edit = {
 
 	modes = {},
 }
-
 local model = Model(edit.file_name)
 
 
@@ -53,6 +52,10 @@ edit.modes.bone = {
 	selected_bone = model.root,
 	bone_buffer   = nil, -- for copying
 }
+function edit.modes.bone:enter()
+end
+function edit.modes.bone:exit()
+end
 function edit.modes.bone:keypressed(k)
 end
 function edit.modes.bone:mousepressed(x, y, button)
@@ -208,12 +211,51 @@ function edit.modes.bone:do_gui()
 end
 
 
+local function transform_to_global_space(points, bone)
+	local p = {}
+	local si = math.sin(bone.global_a)
+	local co = math.cos(bone.global_a)
+	for i = 1, #points, 2 do
+		local x = points[i    ]
+		local y = points[i + 1]
+		p[i    ] = bone.global_x + x * co - y * si
+		p[i + 1] = bone.global_y + y * co + x * si
+	end
+	return p
+end
+local function transform_to_local_space(points, bone)
+	local si = math.sin(bone.global_a)
+	local co = math.cos(bone.global_a)
+	local p = {}
+	for i = 1, #points, 2 do
+		local dx = points[i    ] - bone.global_x
+		local dy = points[i + 1] - bone.global_y
+		p[i    ] = dx * co + dy * si
+		p[i + 1] = dy * co - dx * si
+	end
+	return p
+end
+
+
 edit.modes.mesh = {
 	poly_index        = 0,
 	selected_vertices = {},
 }
+function edit.modes.mesh:enter()
+	local poly = model.polys[self.poly_index]
+	if poly and poly.bone then
+		poly.data = transform_to_global_space(poly.data, poly.bone)
+	end
+end
+function edit.modes.mesh:exit()
+	local poly = model.polys[self.poly_index]
+	if poly and poly.bone then
+		poly.data = transform_to_local_space(poly.data, poly.bone)
+	end
+end
 function edit.modes.mesh:select_poly()
 	local index = self.poly_index
+	self:exit()
 	self.poly_index = 0
 	for i = 1, #model.polys do
 		if index > 0 then
@@ -221,11 +263,15 @@ function edit.modes.mesh:select_poly()
 		end
 		local poly = model.polys[i]
 		local click = false
-		local x1 = poly.data[#poly.data - 1]
-		local y1 = poly.data[#poly.data]
-		for j = 1, #poly.data, 2 do
-			local x2 = poly.data[j]
-			local y2 = poly.data[j + 1]
+		local data = poly.data
+		if poly.bone then
+			data = transform_to_global_space(poly.data, poly.bone)
+		end
+		local x1 = data[#data - 1]
+		local y1 = data[#data]
+		for j = 1, #data, 2 do
+			local x2 = data[j]
+			local y2 = data[j + 1]
 			local dx = x2 - x1
 			local dy = y2 - y1
 			local ex = edit.mx - x1
@@ -237,15 +283,30 @@ function edit.modes.mesh:select_poly()
 			x1 = x2
 			y1 = y2
 		end
+
 		if click then
 			self.poly_index = i
+			-- select all vertices
 			self.selected_vertices = {}
+			poly.data = data
 			for i = 1, #poly.data, 2 do
 				table.insert(self.selected_vertices, i)
 			end
 			break
 		end
 	end
+end
+function edit.modes.mesh:calc_selection_center()
+	local poly = model.polys[self.poly_index]
+	local cx = 0
+	local cy = 0
+	for _, i in ipairs(self.selected_vertices) do
+		cx = cx + poly.data[i    ]
+		cy = cy + poly.data[i + 1]
+	end
+	cx = cx / #self.selected_vertices
+	cy = cy / #self.selected_vertices
+	return cx, cy
 end
 function edit.modes.mesh:keypressed(k)
 	local poly = model.polys[self.poly_index]
@@ -383,18 +444,6 @@ function edit.modes.mesh:mousemoved(x, y, dx, dy)
 	local poly = model.polys[self.poly_index]
 
 	if poly then
-		local function get_selection_center()
-			local cx = 0
-			local cy = 0
-			for _, i in ipairs(self.selected_vertices) do
-				cx = cx + poly.data[i    ]
-				cy = cy + poly.data[i + 1]
-			end
-			cx = cx / #self.selected_vertices
-			cy = cy / #self.selected_vertices
-			return cx, cy
-		end
-
 		if love.mouse.isDown(1) or love.keyboard.isDown("g") then
 			-- move
 			for _, i in ipairs(self.selected_vertices) do
@@ -404,7 +453,7 @@ function edit.modes.mesh:mousemoved(x, y, dx, dy)
 
 		elseif love.keyboard.isDown("s") then
 			-- scale
-			local cx, cy = get_selection_center()
+			local cx, cy = self:calc_selection_center()
 			local l1 = distance(edit.mx, edit.my, cx + dx, cy + dy)
 			local l2 = distance(edit.mx, edit.my, cx, cy)
 			local s = l2 / l1
@@ -416,7 +465,7 @@ function edit.modes.mesh:mousemoved(x, y, dx, dy)
 
 		elseif love.keyboard.isDown("r") then
 			-- rotate
-			local cx, cy = get_selection_center()
+			local cx, cy = self:calc_selection_center()
 
 			local bx = edit.mx - cx
 			local by = edit.my - cy
@@ -478,12 +527,48 @@ function edit.modes.mesh:do_gui()
 		gui:item_min_size(60, 0)
 		if gui:button("orphan") then
 			poly.bone = nil
+--			assign_poly_bone(poly, nil)
 		end
+
+		gui:item_min_size(60, 0)
+		if gui:button("mirror") then
+			local cx, cy = self:calc_selection_center()
+			for _, i in ipairs(self.selected_vertices) do
+				poly.data[i] = 2 * cx - poly.data[i]
+			end
+		end
+		gui:same_line()
+		gui:item_min_size(60, 0)
+		if gui:button("clone") then
+			if #self.selected_vertices >= 3 then
+				local p = {
+					data = {},
+					color = poly.color,
+					shade = poly.shade,
+					bone  = poly.bone,
+				}
+				table.insert(model.polys, p)
+				for i, j in ipairs(self.selected_vertices) do
+					p.data[#p.data + 1] = poly.data[j    ] + cam.zoom * 10
+					p.data[#p.data + 1] = poly.data[j + 1] + cam.zoom * 10
+					self.selected_vertices[i] = i * 2 - 1
+				end
+				self.poly_index = #model.polys
+			end
+		end
+
 	end
 end
 
 
-edit.mode = edit.modes.mesh
+function edit:set_mode(m)
+	if self.mode then
+		self.mode:exit()
+	end
+	self.mode = self.modes[m]
+	self.mode:enter()
+end
+edit:set_mode("mesh")
 
 
 function love.keypressed(k)
@@ -575,7 +660,7 @@ function do_gui()
 		if m ~= t[1]
 		or gui.was_key_pressed["tab"] then
 			m = m == "bone" and "mesh" or "bone"
-			edit.mode = edit.modes[m]
+			edit:set_mode(m)
 		end
 	end
 
@@ -608,7 +693,9 @@ function do_gui()
 		gui:same_line()
 		if gui:button("save")
 		or (gui.was_key_pressed["s"] and ctrl) then
+			edit.mode:exit()
 			model:save(edit.file_name)
+			edit.mode:enter()
 			print("model saved")
 		end
 		gui:same_line()
@@ -815,7 +902,12 @@ function love.draw()
 
 
 	-- polys
-	for _, p in ipairs(model.polys) do
+	for i, p in ipairs(model.polys) do
+		G.push()
+		if p.bone and (edit.mode ~= edit.modes.mesh or i ~= edit.modes.mesh.poly_index) then
+			G.translate(p.bone.global_x, p.bone.global_y)
+			G.rotate(p.bone.global_a)
+		end
 		local c = colors[p.color]
 		local s = p.shade
 		G.setColor(c[1] * s, c[2] * s, c[3] * s)
@@ -824,6 +916,7 @@ function love.draw()
 		else
 			G.polygon("line", p.data)
 		end
+		G.pop()
 	end
 
 	-- bone
@@ -897,7 +990,6 @@ function love.draw()
 			end
 		end
 	end
-
 
 
 --	if bg.enabled then
