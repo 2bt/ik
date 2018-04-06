@@ -1049,13 +1049,11 @@ function love.draw()
 			G.setColor(1, 1, 1, 0.6)
 			G.circle("fill", b.global_x, b.global_y, 5 * cam.zoom)
 		end
+		-- selected
+		local b = edit.modes.bone.selected_bone
+		G.setColor(1, 1, 0, 0.6)
+		G.circle("fill", b.global_x, b.global_y, 10 * cam.zoom)
 	end
-
-	-- selected
-	local b = edit.modes.bone.selected_bone
-	G.setColor(1, 1, 0, 0.6)
-	G.circle("fill", b.global_x, b.global_y, 10 * cam.zoom)
-
 
 	local m = edit.mode
 	if m == edit.modes.mesh then
