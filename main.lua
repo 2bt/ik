@@ -101,8 +101,7 @@ function edit:set_mode(m)
 	if self.mode then
 		self.mode:exit()
 	end
-	self.mode = self.modes[m]
-	self.mode:enter()
+	self.modes[m]:enter()
 end
 
 
@@ -112,6 +111,7 @@ edit.modes.bone = {
 	bone_buffer   = nil, -- for copying
 }
 function edit.modes.bone:enter()
+	edit.mode = self
 end
 function edit.modes.bone:exit()
 end
@@ -304,6 +304,7 @@ function edit.modes.mesh:enter()
 	if edit.is_playing then
 		edit:set_playing(false)
 	end
+	edit.mode = self
 	local poly = model.polys[self.poly_index]
 	if poly and poly.bone then
 		poly.data = transform_to_global_space(poly.data, poly.bone)
