@@ -92,8 +92,6 @@ end
 function edit:set_playing(p)
 	self.is_playing = p
 	if not p then
-		edit:set_mode("bone")
-	else
 		self:set_frame(math.floor(self.frame + 0.5))
 	end
 end
