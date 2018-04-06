@@ -223,7 +223,7 @@ function edit.modes.bone:do_gui()
 
 	gui:separator()
 	gui:item_min_size(125, 0)
-	gui:drag_value("IK chain", self, "ik_length", 1, 1, 5, "%d")
+	gui:drag_value("IK", self, "ik_length", 1, 1, 5, "%d")
 
 	-- duplicate bone
 	local function duplicate(b, p)
@@ -249,7 +249,7 @@ function edit.modes.bone:do_gui()
 		self.selected_bone:update()
 	end
 
-	gui:item_min_size(125, 0)
+	gui:item_min_size(60, 0)
 	if gui:button("delete")
 	or gui.was_key_pressed["x"] then
 		-- delete bone
@@ -769,7 +769,7 @@ local function do_gui()
 
 		-- timeline
 		local w = gui.current_window.columns[1].max_x - gui.current_window.max_cx - 5
-		local box = gui:item_box(w, 45)
+		local box = gui:item_box(w, 55)
 
 		-- change frame
 		if gui.was_key_pressed["backspace"] then
@@ -781,6 +781,13 @@ local function do_gui()
 		end
 		local dx = (gui.was_key_pressed["right"] and 1 or 0)
 				- (gui.was_key_pressed["left"] and 1 or 0)
+		if (not gui.active_item or gui.active_item == "timeline") and gui:mouse_in_box(box) then
+			dx = dx + gui.wheel
+			if gui.is_mouse_down then
+				gui.active_item = "timeline"
+				edit:set_frame(math.floor((gui.mx - box.x - 5) / 10 + 0.5))
+			end
+		end
 		if dx ~= 0 then
 			if shift then dx = dx * 10 end
 			local f = edit.frame + dx
@@ -790,52 +797,50 @@ local function do_gui()
 			end
 			edit:set_frame(f)
 		end
-		if not gui.active_item and gui:mouse_in_box(box) and gui.is_mouse_down then
-			edit:set_frame(math.floor((gui.mx - box.x - 5) / 10 + 0.5))
-		end
 
 		G.setScissor(box.x, box.y, box.w, box.h)
 		G.push()
 		G.translate(box.x, box.y)
 
+
+		G.setColor(0.4, 0.4, 0.4, 0.8)
+		G.rectangle("fill", 0, 0, box.w, box.h)
+
+		-- current frame
+		G.setColor(0, 1, 0)
+		local x = 5 + edit.frame * 10
+		G.line(x, 0, x, 55)
+
+		-- animations
+		G.setColor(0, 1, 0, 0.3)
+		for _, a in ipairs(model.anims) do
+			local x1 = 5 + a.start * 10
+			local x2 = 5 + a.stop * 10
+			G.rectangle("fill", x1, 5, x2 - x1, 20, 8)
+		end
+
+		-- fill keyframe mask
 		local is_keyframe = {}
 		for _, b in ipairs(model.bones) do
 			for _, k in ipairs(b.keyframes) do
 				is_keyframe[k[1]] = true
 			end
 		end
-
-		G.setColor(0.39, 0.39, 0.39, 0.78)
-		G.rectangle("fill", 0, 0, box.w, box.h)
-
-		-- current frame
-		G.setColor(0, 1, 0)
-		local x = 5 + edit.frame * 10
-		G.line(x, 0, x, 45)
-
-		-- animations
-		G.setColor(0, 1, 0, 0.59)
-		for _, a in ipairs(model.anims) do
-			local x1 = 5 + a.start * 10
-			local x2 = 5 + a.stop * 10
-			G.rectangle("fill", x1, 5, x2 - x1, 10)
-		end
-
 		-- lines
 		local i = 0
 		for x = 5, box.w, 10 do
 			G.setColor(1, 1, 1)
 			if i % 10 == 0 then
-				G.line(x, 35, x, 45)
-				G.printf(i, x - 50, 18, 100, "center")
+				G.line(x, 45, x, 55)
+				G.printf(i, x - 50, 28, 100, "center")
 			else
-				G.line(x, 40, x, 45)
+				G.line(x, 50, x, 55)
 			end
 
 			-- keyframe
 			if is_keyframe[i] then
-				G.setColor(1, 0.78, 0.39)
-				G.circle("fill", x, 10, 5, 4)
+				G.setColor(1, 0.8, 0.4)
+				G.circle("fill", x, 15, 5, 4)
 			end
 			i = i + 1
 		end
@@ -883,14 +888,21 @@ local function do_gui()
 		end
 		gui:same_line()
 
+		gui.id_prefix = "anim" -- hacky :)
 		local t = edit.current_anim or edit
 		gui:item_min_size(200, 0)
 		gui:drag_value("speed", t, "speed", 0.01, 0.01, 1, "%.2f")
 		gui:same_line()
 		if edit.current_anim then
-			gui:checkbox("loop", t, "loop")
+			local t = { len = edit.current_anim.stop - edit.current_anim.start }
+			gui:item_min_size(200, 0)
+			if gui:drag_value("length", t, "len", 1, 1, 50, "%d") then
+				edit.current_anim.stop = edit.current_anim.start + t.len
+			end
+
 			gui:same_line()
-			gui.id_prefix = "anim" -- hacky :)
+			gui:checkbox("loop", edit.current_anim, "loop")
+			gui:same_line()
 			if gui:button("delete") then
 				for i, a in ipairs(model.anims) do
 					if a == edit.current_anim then
@@ -898,10 +910,26 @@ local function do_gui()
 						break
 					end
 				end
-				edit.current_anim = nil
+				edit:find_current_anim()
+			end
+		else
+			if gui:button("insert") then
+				edit:set_playing(false)
+				local index = 1
+				for i, a in ipairs(model.anims) do
+					if edit.frame >= a.start then
+						index = i
+					end
+				end
+				edit.current_anim = {
+					start = edit.frame,
+					stop = edit.frame + 10,
+					loop = false,
+					speed = edit.speed,
+				}
+				table.insert(model.anims, index, edit.current_anim)
 			end
 		end
-
 
 	end
 
@@ -1071,7 +1099,7 @@ function love.draw()
 
 
 --	if bg.enabled then
---		G.setColor(1, 1, 1, 0.27)
+--		G.setColor(1, 1, 1, 0.25)
 --		G.draw(bg.img, bg.x, bg.y, 0, bg.scale)
 --	end
 
