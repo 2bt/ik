@@ -241,7 +241,7 @@ function gui:text(fmt, ...)
 	local w = G.getFont():getWidth(str)
 	local box = self:item_box(w, 14)
 	set_color("text")
-	G.print(str, box.x, box.y + box.h / 2 - 7)
+	G.print(str, box.x, box.y + box.h / 2 - 8)
 end
 function gui:button(label)
 	local id = self:get_id(label)
@@ -266,7 +266,7 @@ function gui:button(label)
 	G.rectangle("fill", box.x, box.y, box.w, box.h, PADDING)
 
 	set_color("text")
-	G.printf(label, box.x, box.y + box.h / 2 - 7, box.w, "center")
+	G.printf(label, box.x, box.y + box.h / 2 - 8, box.w, "center")
 
 	return hover and self.was_mouse_cliked
 end
@@ -299,7 +299,7 @@ function gui:checkbox(label, t, n)
 	end
 
 	set_color("text")
-	G.print(label, box.x + box.h + PADDING, box.y + box.h / 2 - 7)
+	G.print(label, box.x + box.h + PADDING, box.y + box.h / 2 - 8)
 
 	return hover and self.was_mouse_cliked
 end
@@ -327,7 +327,7 @@ function gui:radio_button(label, v, t)
 	G.rectangle("fill", box.x, box.y, box.w, box.h, PADDING)
 
 	set_color("text")
-	G.printf(label, box.x, box.y + box.h / 2 - 7, box.w, "center")
+	G.printf(label, box.x, box.y + box.h / 2 - 8, box.w, "center")
 
 	return hover and self.was_mouse_cliked
 end
@@ -367,7 +367,7 @@ function gui:drag_value(label, t, n, step, min, max, fmt)
 	G.rectangle("fill", box.x + handle_x, box.y, handle_w, box.h)
 
 	set_color("text")
-	G.printf(text, box.x, box.y + box.h / 2 - 7, box.w, "center")
+	G.printf(text, box.x, box.y + box.h / 2 - 8, box.w, "center")
 
 	return v ~= t[n]
 end
