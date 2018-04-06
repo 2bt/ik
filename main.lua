@@ -41,9 +41,10 @@ local edit = {
 	show_bones  = true,
 
 	-- animation
-	is_playing = false,
-	speed      = 0.5,
-	frame      = 0,
+	current_anim = nil,
+	is_playing   = false,
+	speed        = 0.5,
+	frame        = 0,
 
 	-- mouse
 	mx = 0,
@@ -56,12 +57,7 @@ local edit = {
 local model = Model(edit.file_name)
 
 
-function edit:set_frame(f)
-	edit:set_mode("bone")
-
-	self.frame = math.max(0, f)
-	model:set_frame(self.frame)
-
+function edit:find_current_anim()
 	self.current_anim = nil
 	for _, a in ipairs(model.anims) do
 		if self.frame >= a.start
@@ -70,7 +66,12 @@ function edit:set_frame(f)
 			break
 		end
 	end
-
+end
+function edit:set_frame(f)
+	edit:set_mode("bone")
+	self.frame = math.max(0, f)
+	model:set_frame(self.frame)
+	self:find_current_anim()
 end
 function edit:update_frame()
 	if not self.is_playing then return end
@@ -732,6 +733,7 @@ local function do_gui()
 			edit.modes.mesh.selected_vertices = {}
 			edit.modes.mesh.poly_index = 0
 			edit.modes.bone.selected_bone = model.root
+			edit:find_current_anim()
 		end
 		gui:same_line()
 		if gui:button("load")
@@ -744,6 +746,7 @@ local function do_gui()
 			edit.modes.mesh.selected_vertices = {}
 			edit.modes.mesh.poly_index = 0
 			edit.modes.bone.selected_bone = model.root
+			edit:find_current_anim()
 		end
 		gui:same_line()
 		if gui:button("save")
@@ -840,27 +843,9 @@ local function do_gui()
 		G.pop()
 		G.setScissor()
 
-		-- play
-		local t = { edit.is_playing }
-		gui:radio_button("stop", false, t)
-		gui:same_line()
-		gui:radio_button("play", true, t)
-		gui:same_line()
-		if edit.is_playing ~= t[1]
-		or gui.was_key_pressed["space"] then
-			edit:set_playing(not edit.is_playing)
-		end
-		gui:separator()
-
-		-- animation
-		local t = edit.current_anim or edit
-		gui:item_min_size(400, 0)
-		gui:drag_value("animation speed", t, "speed", 0.01, 0.01, 1, "%.2f")
-		gui:same_line()
-		gui:separator()
-
 		-- keyframe buttons
-		gui:text("keyframe:")
+		gui:item_min_size(0, 20)
+		gui:text("keyframe")
 		gui:same_line()
 		if gui:button("insert") or gui.was_key_pressed["i"] then
 			model:insert_keyframe(edit.frame)
@@ -879,6 +864,44 @@ local function do_gui()
 		or (gui.was_key_pressed["i"] and alt) then
 			model:delete_keyframe(edit.frame)
 		end
+
+		gui:same_line()
+		gui:separator()
+
+		-- animation
+		gui:text("animation")
+		gui:same_line()
+
+		-- play
+		local t = { edit.is_playing }
+		gui:radio_button("stop", false, t)
+		gui:same_line()
+		gui:radio_button("play", true, t)
+		if edit.is_playing ~= t[1]
+		or gui.was_key_pressed["space"] then
+			edit:set_playing(not edit.is_playing)
+		end
+		gui:same_line()
+
+		local t = edit.current_anim or edit
+		gui:item_min_size(200, 0)
+		gui:drag_value("speed", t, "speed", 0.01, 0.01, 1, "%.2f")
+		gui:same_line()
+		if edit.current_anim then
+			gui:checkbox("loop", t, "loop")
+			gui:same_line()
+			gui.id_prefix = "anim" -- hacky :)
+			if gui:button("delete") then
+				for i, a in ipairs(model.anims) do
+					if a == edit.current_anim then
+						table.remove(model.anims, i)
+						break
+					end
+				end
+				edit.current_anim = nil
+			end
+		end
+
 
 	end
 
