@@ -23,18 +23,18 @@ end
 
 
 gui = {
-	mx               = 0,
-	my               = 0,
-	iw               = 0,
-	ih               = 0,
+	mx                = 0,
+	my                = 0,
+	iw                = 0,
+	ih                = 0,
 
-	wheel            = 0,
-	is_mouse_down    = false,
-	was_mouse_cliked = false,
-	was_key_pressed  = {},
-	hover_item       = nil,
-	active_item      = nil,
-	windows          = { {}, {}, {} },
+	wheel             = 0,
+	is_mouse_down     = false,
+	was_mouse_clicked = false,
+	was_key_pressed   = {},
+	hover_item        = nil,
+	active_item       = nil,
+	windows           = { {}, {}, {} },
 }
 for _, win in ipairs(gui.windows) do
 	win.columns = {
@@ -131,7 +131,7 @@ function gui:begin_frame()
 	-- input
 	local p = self.is_mouse_down
 	self.is_mouse_down = love.mouse.isDown(1)
-	self.was_mouse_cliked = self.is_mouse_down and not p
+	self.was_mouse_clicked = self.is_mouse_down and not p
 	if not self.is_mouse_down then
 		self.active_item = nil
 	end
@@ -251,7 +251,7 @@ function gui:button(label)
 	local hover = self:mouse_in_box(box)
 	if hover then
 		self.hover_item = id
-		if self.was_mouse_cliked then
+		if self.was_mouse_clicked then
 			self.active_item = id
 		end
 	end
@@ -268,7 +268,7 @@ function gui:button(label)
 	set_color("text")
 	G.printf(label, box.x, box.y + box.h / 2 - 8, box.w, "center")
 
-	return hover and self.was_mouse_cliked
+	return hover and self.was_mouse_clicked
 end
 function gui:checkbox(label, t, n)
 	local id = self:get_id(label)
@@ -278,7 +278,7 @@ function gui:checkbox(label, t, n)
 	local hover = self:mouse_in_box(box)
 	if hover then
 		self.hover_item = id
-		if self.was_mouse_cliked then
+		if self.wasmouse_clicked then
 			self.active_item = id
 			t[n] = not t[n]
 		end
@@ -301,7 +301,7 @@ function gui:checkbox(label, t, n)
 	set_color("text")
 	G.print(label, box.x + box.h + PADDING, box.y + box.h / 2 - 8)
 
-	return hover and self.was_mouse_cliked
+	return hover and self.was_mouse_clicked
 end
 function gui:radio_button(label, v, t)
 	local id = self:get_id(label)
@@ -311,7 +311,7 @@ function gui:radio_button(label, v, t)
 	local hover = self:mouse_in_box(box)
 	if hover then
 		self.hover_item = id
-		if self.was_mouse_cliked then
+		if self.was_mouse_clicked then
 			self.active_item = id
 			t[1] = v
 		end
@@ -329,7 +329,7 @@ function gui:radio_button(label, v, t)
 	set_color("text")
 	G.printf(label, box.x, box.y + box.h / 2 - 8, box.w, "center")
 
-	return hover and self.was_mouse_cliked
+	return hover and self.was_mouse_clicked
 end
 function gui:drag_value(label, t, n, step, min, max, fmt)
 	local id = self:get_id(label)
@@ -341,7 +341,7 @@ function gui:drag_value(label, t, n, step, min, max, fmt)
 	local hover = self:mouse_in_box(box)
 	if hover then
 		self.hover_item = id
-		if self.was_mouse_cliked then
+		if self.was_mouse_clicked then
 			self.active_item = id
 		end
 	end
