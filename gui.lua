@@ -278,7 +278,7 @@ function gui:checkbox(label, t, n)
 	local hover = self:mouse_in_box(box)
 	if hover then
 		self.hover_item = id
-		if self.wasmouse_clicked then
+		if self.was_mouse_clicked then
 			self.active_item = id
 			t[n] = not t[n]
 		end

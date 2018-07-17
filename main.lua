@@ -686,7 +686,10 @@ local function do_gui()
 		gui:same_line()
 		gui:checkbox("joint", edit, "show_joints")
 		gui:item_min_size(60, 0)
+		local p = gui.id_prefix
+		gui.id_prefix = p .."#" -- becaue we use "bone" somewhere else
 		gui:checkbox("bone", edit, "show_bones")
+		gui.id_prefix = p
 		gui:same_line()
 		gui:checkbox("grid", edit, "show_grid")
 		if gui.was_key_pressed["#"] then
