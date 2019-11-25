@@ -2,7 +2,7 @@
 
 A character animation editor. The model is made up of a list of polygons.
 
-The character and its animations for my game [vs](https://github.com/2bt/vs) were created with this tool.
+The character and its animations for my game [VS](https://github.com/2bt/vs) were created with this tool.
 
 ![image](animation.gif)
 
