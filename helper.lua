@@ -32,6 +32,7 @@ end
 function table.tostring(t)
     local buf = {}
     local function w(o, s, p)
+        p = p or s
         local t = type(o)
         if t == "table" then
             buf[#buf + 1] = p .. "{"
@@ -39,14 +40,14 @@ function table.tostring(t)
             or (o[1] and type(o[1]) == "number") then
                 for i, a in ipairs(o) do
                     if i > 1 then buf[#buf+1] = "," end
-                    w(a, "", "")
+                    w(a, "")
                 end
                 buf[#buf + 1] = "}"
             else
                 buf[#buf+1] = "\n"
                 if o[1] then
                     for i, a in ipairs(o) do
-                        w(a, s .. " ", "")
+                        w(a, s .. " ")
                         buf[#buf+1] = ",\n"
                     end
                 else
@@ -69,7 +70,7 @@ function table.tostring(t)
             buf[#buf+1] = p .. tostring(o)
         end
     end
-    w(t, "", "")
+    w(t, "")
     return table.concat(buf)
 end
 local function clone(t)

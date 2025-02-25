@@ -5,6 +5,7 @@ local keyframe_buffer = {}
 
 function Model:add_bone(b)
     table.insert(self.bones, b)
+    b.i = #self.bones
     for _, k in ipairs(b.kids) do self:add_bone(k) end
 end
 local function transform_to_global_space(points, bone)
@@ -42,6 +43,9 @@ function Model:delete_bone(b)
             break
         end
     end
+    for i, b in ipairs(self.bones) do
+        b.i = i
+    end
 end
 function Model:save(name)
     local order = {}
@@ -75,37 +79,43 @@ function Model:save(name)
 end
 
 -- keyframe stuff
+function Bone:insert_keyframe(frame)
+    local kf
+    for i, k in ipairs(self.keyframes) do
+        if k[1] == frame then
+            kf = k
+            break
+        end
+        if k[1] > frame then
+            kf = { frame }
+            table.insert(self.keyframes, i, kf)
+            break
+        end
+    end
+    if not kf then
+        kf = { frame }
+        table.insert(self.keyframes, kf)
+    end
+    kf[2] = self.x
+    kf[3] = self.y
+    kf[4] = self.a
+end
 function Model:insert_keyframe(frame)
     for _, b in ipairs(self.bones) do
-        local kf
-        for i, k in ipairs(b.keyframes) do
-            if k[1] == frame then
-                kf = k
-                break
-            end
-            if k[1] > frame then
-                kf = { frame }
-                table.insert(b.keyframes, i, kf)
-                break
-            end
+        b:insert_keyframe(frame)
+    end
+end
+function Bone:delete_keyframe(frame)
+    for i, k in ipairs(self.keyframes) do
+        if k[1] == frame then
+            table.remove(self.keyframes, i)
+            break
         end
-        if not kf then
-            kf = { frame }
-            table.insert(b.keyframes, kf)
-        end
-        kf[2] = b.x
-        kf[3] = b.y
-        kf[4] = b.a
     end
 end
 function Model:delete_keyframe(frame)
     for _, b in ipairs(self.bones) do
-        for i, k in ipairs(b.keyframes) do
-            if k[1] == frame then
-                table.remove(b.keyframes, i)
-                break
-            end
-        end
+        b:delete_keyframe(frame)
     end
 end
 function Model:copy_keyframe(frame)

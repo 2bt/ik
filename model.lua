@@ -78,6 +78,7 @@ function Model:load(name)
     self.bones = {}
     for i, d in ipairs(data.bones) do
         local b = Bone(d.x, d.y, d.a, d.keyframes)
+        b.i = i
         table.insert(self.bones, b)
     end
     for i, d in ipairs(data.bones) do

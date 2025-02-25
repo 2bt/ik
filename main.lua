@@ -276,6 +276,7 @@ function edit.modes.bone:do_gui()
 
 
     local b = self.selected_bone
+    gui:text("nr %d", b.i or 0)
     gui:text("x  %.2f", b.x)
     gui:text("y  %.2f", b.y)
     gui:text("a  %.2f°", b.a * 180 / math.pi)
@@ -698,6 +699,12 @@ local function do_gui()
         gui:select_win(1)
 
         gui:item_min_size(60, 0)
+        gui:text("mx  %.2f", edit.mx)
+        gui:text("my  %.2f", edit.my)
+        gui:separator()
+
+
+        gui:item_min_size(60, 0)
         gui:checkbox("fill", edit, "show_fill")
         gui:same_line()
         gui:checkbox("joint", edit, "show_joints")
@@ -776,8 +783,7 @@ local function do_gui()
         end
         gui:same_line()
 
-        if gui:button("quit")
-        or gui.was_key_pressed["escape"] then
+        if gui:button("quit") then
             love.event.quit()
         end
     end
@@ -871,7 +877,14 @@ local function do_gui()
         gui:text("keyframe")
         gui:same_line()
         if gui:button("insert") or gui.was_key_pressed["i"] then
-            model:insert_keyframe(edit.frame)
+            if ctrl then
+                local bone = edit.modes.bone.selected_bone
+                if bone then
+                    bone:insert_keyframe(edit.frame)
+                end
+            else
+                model:insert_keyframe(edit.frame)
+            end
         end
         gui:same_line()
         if gui:button("copy") then
@@ -882,10 +895,15 @@ local function do_gui()
             model:paste_keyframe(edit.frame)
         end
         gui:same_line()
-        local alt = love.keyboard.isDown("lalt", "ralt")
-        if gui:button("delete")
-        or (gui.was_key_pressed["i"] and alt) then
-            model:delete_keyframe(edit.frame)
+        if gui:button("delete") or gui.was_key_pressed["k"] then
+            if ctrl then
+                local bone = edit.modes.bone.selected_bone
+                if bone then
+                    bone:delete_keyframe(edit.frame)
+                end
+            else
+                model:delete_keyframe(edit.frame)
+            end
         end
 
         gui:same_line()
@@ -909,7 +927,7 @@ local function do_gui()
         gui.id_prefix = "anim" -- hacky :)
         local t = edit.current_anim or edit
         gui:item_min_size(200, 0)
-        gui:drag_value("speed", t, "speed", 0.01, 0.01, 1, "%.2f")
+        gui:drag_value("speed", t, "speed", 0.01, 0.0, 1, "%.2f")
         gui:same_line()
         if edit.current_anim then
             local t = { len = edit.current_anim.stop - edit.current_anim.start }
@@ -935,8 +953,9 @@ local function do_gui()
                 edit:set_playing(false)
                 local index = 1
                 for i, a in ipairs(model.anims) do
-                    if edit.frame >= a.start then
+                    if edit.frame < a.start then
                         index = i
+                        break
                     end
                 end
                 edit.current_anim = {
