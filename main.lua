@@ -951,9 +951,9 @@ local function do_gui()
         else
             if gui:button("insert") then
                 edit:set_playing(false)
-                local index = 1
+                local index = #model.anims + 1
                 for i, a in ipairs(model.anims) do
-                    if edit.frame < a.start then
+                    if a.start > edit.frame then
                         index = i
                         break
                     end
