@@ -156,7 +156,6 @@ function Model:paste_keyframe(frame)
     self:set_frame(frame)
 end
 
-
 local keyframe_buffer_x = {}
 function Model:copy_keyframe_x(frame, bone)
     keyframe_buffer_x = {}
@@ -172,12 +171,11 @@ function Model:copy_keyframe_x(frame, bone)
     cp(bone)
 end
 function Model:paste_keyframe_x(frame, bone)
-
     local index = 1
     local function pst(bone)
         local q = keyframe_buffer_x[index]
         if not q then
-            print("WARNING: not enought bones copied")
+            print("WARNING: not enough bones copied")
             return
         end
         index = index + 1

@@ -908,6 +908,42 @@ local function do_gui()
                 model:delete_keyframe(edit.frame)
             end
         end
+        gui:same_line()
+        if gui:button("animate other limb") and edit.current_anim and bone ~= model.root then
+            -- find limb start bone
+            while bone.parent and #bone.parent.kids <= 1 do
+                bone = bone.parent
+            end
+            -- find other limb
+            local len = math.sqrt(bone.x^2 + bone.y^2)
+            local other_bone = nil
+            local other_len  = nil
+            for _, b in ipairs(bone.parent.kids) do
+                if b ~= bone then
+                    local l = math.sqrt(b.x^2 + b.y^2)
+                    if not other_bone or math.abs(l - len) < math.abs(other_len - len) then
+                        other_bone = b
+                        other_len  = l
+                    end
+                end
+            end
+            if not other_bone then
+                print("ERROR: couldn't find other limb")
+            else
+                -- copy keyframes
+                local anim = edit.current_anim
+                local k = math.floor((anim.start + anim.stop) / 2)
+                for i = anim.start, anim.stop - 1 do
+                    model:copy_keyframe_x(i, bone)
+                    model:paste_keyframe_x(k, other_bone)
+                    k = k + 1
+                    if k >= anim.stop then
+                        k = anim.start
+                    end
+                end
+                model:set_frame(edit.frame)
+            end
+        end
 
         gui:same_line()
         gui:separator()
