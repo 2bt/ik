@@ -155,3 +155,54 @@ function Model:paste_keyframe(frame)
     end
     self:set_frame(frame)
 end
+
+
+local keyframe_buffer_x = {}
+function Model:copy_keyframe_x(frame, bone)
+    keyframe_buffer_x = {}
+    local function cp(bone)
+        for _, k in ipairs(bone.keyframes) do
+            if k[1] == frame then
+                table.insert(keyframe_buffer_x, { k[2], k[3], k[4] })
+                break
+            end
+        end
+        for _, b in ipairs(bone.kids) do cp(b) end
+    end
+    cp(bone)
+end
+function Model:paste_keyframe_x(frame, bone)
+
+    local index = 1
+    local function pst(bone)
+        local q = keyframe_buffer_x[index]
+        if not q then
+            print("WARNING: not enought bones copied")
+            return
+        end
+        index = index + 1
+        local kf
+        for j, k in ipairs(bone.keyframes) do
+            if k[1] == frame then
+                kf = k
+                break
+            end
+            if k[1] > frame then
+                kf = { frame }
+                table.insert(bone.keyframes, j, kf)
+                break
+            end
+        end
+        if not kf then
+            kf = { frame }
+            table.insert(bone.keyframes, kf)
+        end
+        kf[2] = q[1]
+        kf[3] = q[2]
+        kf[4] = q[3]
+
+        for _, b in ipairs(bone.kids) do pst(b) end
+    end
+    pst(bone)
+    self:set_frame(frame)
+end

@@ -876,31 +876,34 @@ local function do_gui()
         gui:item_min_size(0, 20)
         gui:text("keyframe")
         gui:same_line()
+        local bone = edit.modes.bone.selected_bone
         if gui:button("insert") or gui.was_key_pressed["i"] then
             if ctrl then
-                local bone = edit.modes.bone.selected_bone
-                if bone then
-                    bone:insert_keyframe(edit.frame)
-                end
+                bone:insert_keyframe(edit.frame)
             else
                 model:insert_keyframe(edit.frame)
             end
         end
         gui:same_line()
         if gui:button("copy") then
-            model:copy_keyframe(edit.frame)
+            if ctrl then
+                model:copy_keyframe_x(edit.frame, bone)
+            else
+                model:copy_keyframe(edit.frame)
+            end
         end
         gui:same_line()
         if gui:button("paste") then
-            model:paste_keyframe(edit.frame)
+            if ctrl then
+                model:paste_keyframe_x(edit.frame, bone)
+            else
+                model:paste_keyframe(edit.frame)
+            end
         end
         gui:same_line()
         if gui:button("delete") or gui.was_key_pressed["k"] then
             if ctrl then
-                local bone = edit.modes.bone.selected_bone
-                if bone then
-                    bone:delete_keyframe(edit.frame)
-                end
+                bone:delete_keyframe(edit.frame)
             else
                 model:delete_keyframe(edit.frame)
             end
