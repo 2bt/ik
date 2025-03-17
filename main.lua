@@ -597,24 +597,23 @@ function edit.modes.mesh:do_gui()
         gui:item_min_size(125, 0)
         gui:drag_value("shade", poly, "shade", 0.05, 0.3, 1.3, "%.2f")
 
-        gui:item_min_size(60, 0)
-        if gui:button("assign") then
-            poly.bone = edit.modes.bone.selected_bone
-        end
-        gui:same_line()
-        gui:item_min_size(60, 0)
-        if gui:button("orphan") then
-            poly.bone = nil
-        end
 
         gui:item_min_size(60, 0)
-        if gui:button("mirror") then
+        if gui:button("flip H") then
             local cx, cy = self:calc_selection_center()
             for _, i in ipairs(self.selected_vertices) do
                 poly.data[i] = 2 * cx - poly.data[i]
             end
         end
         gui:same_line()
+        gui:item_min_size(60, 0)
+        if gui:button("flip V") then
+            local cx, cy = self:calc_selection_center()
+            for _, i in ipairs(self.selected_vertices) do
+                poly.data[i+1] = 2 * cy - poly.data[i+1]
+            end
+        end
+
         gui:item_min_size(60, 0)
         if gui:button("clone") then
             if #self.selected_vertices >= 3 then
@@ -634,6 +633,26 @@ function edit.modes.mesh:do_gui()
                 self.poly_index = #model.polys
             end
         end
+
+        gui:same_line()
+        gui:item_min_size(60, 0)
+        if gui:button("snap") then
+            for _, i in ipairs(self.selected_vertices) do
+                poly.data[i]   = math.floor(poly.data[i]   / 10 + 0.5) * 10
+                poly.data[i+1] = math.floor(poly.data[i+1] / 10 + 0.5) * 10
+            end
+        end
+
+        gui:item_min_size(60, 0)
+        if gui:button("assign") then
+            poly.bone = edit.modes.bone.selected_bone
+        end
+        gui:same_line()
+        gui:item_min_size(60, 0)
+        if gui:button("orphan") then
+            poly.bone = nil
+        end
+
 
     end
 end
@@ -936,10 +955,12 @@ local function do_gui()
                 for i = anim.start, anim.stop - 1 do
                     model:copy_keyframe_x(i, bone)
                     model:paste_keyframe_x(k, other_bone)
-                    k = k + 1
                     if k >= anim.stop then
                         k = anim.start
+                        model:copy_keyframe_x(i, bone)
+                        model:paste_keyframe_x(k, other_bone)
                     end
+                    k = k + 1
                 end
                 model:set_frame(edit.frame)
             end
