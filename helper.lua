@@ -51,9 +51,13 @@ function table.tostring(t)
                         buf[#buf+1] = ",\n"
                     end
                 else
-                    for k, a in pairs(o) do
+                    -- sort keys for cleaner diffs
+                    local keys = {}
+                    for k in pairs(o) do table.insert(keys, k) end
+                    table.sort(keys)
+                    for _, k in ipairs(keys) do
                         buf[#buf+1] = s .. " " .. k .. "="
-                        w(a, s .. " ", "")
+                        w(o[k], s .. " ", "")
                         buf[#buf+1] = ",\n"
                     end
                 end
